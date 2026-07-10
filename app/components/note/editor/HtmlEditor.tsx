@@ -40,9 +40,13 @@ export function HtmlEditor({ value, onChange, disabled }: HtmlEditorProps) {
           rows={18}
           disabled={disabled}
           spellCheck={false}
-          // The editor pane uses a 480px floor (mock `.editor`) instead of
-          // the shared `fieldTextarea` (320px), which other forms keep.
-          className={`${fieldControl} font-mono text-mono min-h-[480px] resize-y`}
+          // The editor pane uses a viewport-relative floor on mobile
+          // (`52vh`, mock `.editor`) rising to a fixed 480px at `sm`
+          // (mobile-first order avoids source-order ties — arch S-002),
+          // instead of the shared `fieldTextarea` (320px) other forms keep.
+          // `[overflow-wrap:anywhere]` breaks long unspaced strings so the
+          // textarea never grows a horizontal scroll on narrow screens.
+          className={`${fieldControl} font-mono text-mono min-h-[52vh] sm:min-h-[480px] resize-y [overflow-wrap:anywhere] break-words`}
         />
       </div>
       <details className="mt-2 rounded-md border border-hairline bg-surface-elevated">

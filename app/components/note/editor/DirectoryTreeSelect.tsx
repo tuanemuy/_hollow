@@ -11,6 +11,7 @@ import type { FlatDirectory } from "../loaders";
 import {
   clampActiveIndex,
   nextActiveIndex,
+  resolveDirectoryLabel,
   visibleDirectoryOptions,
 } from "./directoryTreeModel";
 import {
@@ -120,12 +121,12 @@ export function DirectoryTreeSelect({
     if (creating) newNameRef.current?.focus();
   }, [creating]);
 
-  const triggerLabel =
-    pendingDirectoryName !== null
-      ? `新規: ${pendingDirectoryName}`
-      : selected !== undefined && selected !== null
-        ? selected.path
-        : "ディレクトリを選択";
+  const triggerLabel = resolveDirectoryLabel(
+    tree,
+    directoryId,
+    pendingDirectoryName,
+    "ディレクトリを選択",
+  );
 
   const canShowActions =
     allowExistingActions &&
@@ -307,7 +308,12 @@ export function DirectoryTreeSelect({
                               : `${option.name} を展開`
                           }
                           aria-expanded={option.expanded}
-                          className="absolute top-1.5 z-10 inline-flex text-ink-tertiary outline-none"
+                          // Vertically centred on the (now 44px-floored) row;
+                          // the tap area is widened on the VERTICAL axis only
+                          // (`py-2`, width unchanged) so it never overlaps the
+                          // row-select label to its right (arch S-001). `z-10`
+                          // keeps the caret above the option button.
+                          className="absolute top-1/2 z-10 inline-flex -translate-y-1/2 py-2 text-ink-tertiary outline-none"
                           style={{ left: `${indent}px` }}
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => toggleExpand(option.id)}

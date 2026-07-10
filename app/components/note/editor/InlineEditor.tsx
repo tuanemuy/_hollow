@@ -860,7 +860,7 @@ export function InlineEditor({
         aria-label="ノート本文"
         data-editing=""
         data-disabled={disabled === true || undefined}
-        className="note-detail-content min-h-[480px] bg-bg p-4 text-base leading-relaxed caret-accent transition-[border-color,box-shadow] duration-[150ms] motion-reduce:transition-none selection:bg-accent-surface [&_:focus-visible]:shadow-none data-[disabled]:opacity-disabled data-[disabled]:cursor-not-allowed"
+        className="note-detail-content min-h-[52vh] sm:min-h-[480px] bg-bg p-4 text-base leading-relaxed caret-accent transition-[border-color,box-shadow] duration-[150ms] motion-reduce:transition-none selection:bg-accent-surface [&_:focus-visible]:shadow-none data-[disabled]:opacity-disabled data-[disabled]:cursor-not-allowed"
       />
     </div>
   );
