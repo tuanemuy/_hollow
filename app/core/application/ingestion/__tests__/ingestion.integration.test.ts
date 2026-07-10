@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import * as schema from "@/core/adapters/d1/schema";
 import {
   isForbiddenError,
@@ -997,6 +997,64 @@ describe("commitIngestionPreview", () => {
     });
     expect(purgeResult).toEqual({ purged: 1, failed: 0 });
     expect(await base.db.select().from(schema.mediaAssets)).toHaveLength(0);
+  });
+
+  // Issue #468: stage (a) decides the temp-missing skip BEFORE the
+  // metadata-first row insert, so a commit whose temp blob is gone
+  // (e.g. a re-driven job whose temp key was already reclaimed)
+  // completes without a source binding and leaves no stray pending row
+  // for the sweep. Guards the check-before-insert ordering: with the
+  // order reversed, every temp-missing commit would strand a pending
+  // row and the zero-rows assertion fails.
+  it("commits without a source binding and leaves no pending row when the temp blob is missing (Issue #468)", async () => {
+    const base = getContainer();
+    await seedInstanceSettings(base);
+    const owner = await seedUser(base);
+    await seedDirectory(base, owner);
+    // The temp key is never staged in temp storage, so stage (a)'s
+    // `get` raises TempFileNotFoundError.
+    const jobId = await seedIngestionJob(base, {
+      ownerId: owner,
+      status: "previewing",
+      tempStorageKey: `${owner}/ingestion/temp-missing-1`,
+      mimeType: "application/pdf",
+      originalFileName: "report.pdf",
+      byteSize: 4,
+    });
+
+    const warnSpy = vi.fn();
+    const container: TestContainer = {
+      ...base,
+      logger: { info: () => {}, warn: warnSpy, error: () => {} },
+    };
+
+    const { noteId } = await commitIngestionPreview({
+      container,
+      input: { actorUserId: owner, jobId: jobId, modifications: {} },
+    });
+
+    // The commit completes normally; the note just has no bound source.
+    const noteRows = await base.db
+      .select()
+      .from(schema.notes)
+      .where(eq(schema.notes.id, noteId));
+    expect(noteRows).toHaveLength(1);
+    expect(noteRows[0]?.sourceFileId).toBeNull();
+    const jobRows = await base.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
+    expect(jobRows[0]?.status).toBe("saved");
+
+    // The skipped persist left nothing behind: no pending row rides the
+    // sweep chain (the ordering invariant this test pins).
+    expect(await base.db.select().from(schema.mediaAssets)).toHaveLength(0);
+
+    // The skip is observable in the logs.
+    expect(warnSpy).toHaveBeenCalledWith(
+      "ingestion.commit.source_temp_missing",
+      expect.objectContaining({ jobId }),
+    );
   });
 
   // Issue #468: the main UoW re-reads the stage (a) row and guards it

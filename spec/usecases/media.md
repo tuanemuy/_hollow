@@ -3,7 +3,7 @@
 ## UploadMedia（直接アップロード）
 
 ### 入力DTO
-- `actorUserId: UserId`, `kind: MediaKind`, `mimeType: string`, `byteSize: number`, `bodyStream: ReadableStream`, `originalFileName: string | null`
+- `actorUserId: UserId`, `kind: UploadableMediaKind`（= `MediaKind` から `'source'` を除外。source の pending 行は commit フロー内でのみ誕生する — sweep の放棄判定の安全前提。#468 ADR-004）, `mimeType: string`, `byteSize: number`, `bodyStream: ReadableStream`, `originalFileName: string | null`
 
 ### 出力DTO
 - `mediaId: MediaAssetId`, `downloadUrl: URL`
@@ -23,7 +23,7 @@
 ## UploadMediaPresigned（事前 URL 取得）
 
 ### 入力DTO
-- `actorUserId: UserId`, `kind`, `mimeType`, `byteSize`
+- `actorUserId: UserId`, `kind: UploadableMediaKind`（source 除外は UploadMedia と同じ。#468 ADR-004）, `mimeType`, `byteSize`
 
 ### 出力DTO
 - `mediaId`, `uploadUrl: URL`, `expectedDownloadUrl: URL`

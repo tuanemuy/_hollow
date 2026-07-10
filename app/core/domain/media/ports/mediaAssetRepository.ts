@@ -55,7 +55,12 @@ export interface MediaAssetRepository {
   ): Promise<readonly MediaAsset[]>;
   /**
    * Abandoned source intakes: `pending` rows with `kind = 'source'`
-   * whose `updatedAt` predates `before`, ordered oldest-first. These are
+   * whose `updatedAt` predates `before`, ordered oldest-first
+   * (`updatedAt` ascending, then `id` ascending as the tie-break).
+   * The tie-break is part of the contract: rows created in the same
+   * second (e.g. a failed bulk commit) share an `updatedAt`, and
+   * limit-crossing sweeps stay deterministic only if every
+   * implementation resolves ties the same way. These are
    * rows created by the commit flow's metadata-first stage (a) that were
    * never attached — the commit's main UoW rolled back or the `put`
    * failed — so the sweep can reclaim them. Only `kind = 'source'` is in

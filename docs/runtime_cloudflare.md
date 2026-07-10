@@ -322,7 +322,7 @@ Three cron triggers ship in `wrangler.<stage>.toml`:
 
 ### Media storage hygiene (Issue #468)
 
-The daily pruner tick ends with two best-effort media steps built on a purge `RequestContainer` (UoW + `OBJECT_STORAGE` binding + R2 presign secrets — all three presign secrets and the binding must be present or the container falls back to an unavailable objectStorage and the R2 deletes fail):
+The daily pruner tick ends with two best-effort media steps built on a purge `RequestContainer` (UoW + `OBJECT_STORAGE` binding + R2 presign secrets — all five of the binding, the three presign secrets, and the `R2_OBJECT_BUCKET_NAME` var must be present (all-or-nothing, `readRequestServerConfig`) or the container falls back to an unavailable objectStorage and the R2 deletes fail):
 
 1. `sweepAbandonedSourceIntakes` — orphans `pending(kind='source')` rows older than 24h. These are leftovers of ingestion commits whose main UoW rolled back (or whose R2 `put` failed) after the metadata-first stage persisted the row.
 2. `purgeOrphans` — transitions orphans older than 24h to `deleting` and finalises the purge (R2 delete + DB delete). This reclaims all orphaned media, not just sources.
@@ -339,9 +339,12 @@ Deploys **before** the metadata-first commit flow could leak a source blob with 
    AWS_ACCESS_KEY_ID=<R2_ACCESS_KEY_ID> AWS_SECRET_ACCESS_KEY=<R2_SECRET_ACCESS_KEY> \
    aws s3api list-objects-v2 \
      --endpoint-url "https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com" \
+     --region auto \
      --bucket <objects-bucket> \
      --query 'Contents[].Key' --output text | tr '\t' '\n' | grep '/source/'
    ```
+
+   `--region auto` matters: the AWS CLI demands a region even with `--endpoint-url`, so on a machine without a default region the command fails with "You must specify a region". R2 expects `auto`.
 
 2. Compare against DB rows (note `--remote`, as in the DLQ recovery examples above):
 

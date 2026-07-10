@@ -148,8 +148,15 @@ Round 1 レビュー（Infrastructure [W-001] / [W-002]）で 2 点、Round 2 �
 2. 候補ウィンドウ内に malformed な `media_assets` 行が 1 件あると、候補列挙の再水和（list 全体の `toMediaAsset` map）が丸ごと throw し、sweep / purge の当該ステップが以後の全 tick で空振りし続ける。
 3. sweep の fresh 再読 → batch flush の残余窓（deferred-batch UoW は read-your-write 非対応）に `reconcileRefs` 経由の attach が重なると、attached 行が sweep の orphan で上書きされ、生きたノートの source blob が 24h 後に purge されうる。`reconcileRefs` は orphan / deleting のみを拒否し pending は kind・経過時間を問わず attach でき、放棄 intake の id は `listMediaByOwner` で owner に露出しているため、経路自体は実在する。
 
+さらに Round 4 レビュー（Domain [W-001] / [W-002]、UseCase [W-002]）で、ADR-004 の安全前提（「猶予超過の pending source = 放棄」「pending source に触るのは commit フローだけ」）を破りうる owner 向け経路が `reconcileRefs` 以外に 2 本特定された:
+
+- `updateProfile`（avatar 差し替え）は `findById → 所有チェック → incrementRef` を kind 未検査のまま直接呼ぶため、放棄済み `pending(kind='source')` を経過時間を問わず attach できる。`reconcileRefs` を経由しないため、`reconcileRefs` の added パスだけを塞いでも封鎖にならない。
+- `finalizeUpload` は owner チェックのみで kind / status を見ず、blob が実在する放棄 intake（main UoW ロールバック残骸）に対して `stat` が成功すると `updatedAt` を再スタンプする。`updatedAt` は sweep の放棄判定アンカーなので、finalize 呼び出しごとに回収が無期限に先送りされうる（誤回収ではなく先送りのみ、他者影響なし）。
+
 ### 決定内容
 いずれも本PR（#834）では修正せず、別Issue（起票予定）で対応する。3 の構造的封鎖（`reconcileRefs` の added パスで pending の `kind='source'` を orphan / deleting 同様に `IllegalTransition` で拒否する）も同様に別Issueとし、本PRでは sweep の JSDoc を実態（残余窓の存在と許容根拠）に合わせて正確化するに留める。
+
+構造的封鎖の別Issueでは、封鎖対象経路を `reconcileRefs` に加えて `updateProfile`（kind 未検査の attach）と `finalizeUpload`（kind 無差別の `updatedAt` 再スタンプ）まで含める。`reconcileRefs` 内の列挙的なガードでは後者 2 本を塞げないため、封鎖点はユースケース側の列挙ではなくドメイン遷移規則側の単一ガード（例: `MediaAsset.incrementRef` / `markAttached` が放棄回収対象の pending source の attach を拒否する）に置くことを検討する。
 
 ### 理由
 1 / 2 はどちらも本PRが新設した機構ではなく既存の `purgeOrphans` / 候補列挙実装の特性であり、現行でも行が失われることはない（oldest-first + 再試行で回収は最終的に進む。malformed 行はアプリ生成 id が常に UUIDv7 のため通常運用では生じない）。修正には drain ループの上限設計や行単位再水和のエラー処理方針という独立した設計判断を伴うため、#468 のスコープ（source のストレージ衛生の確立）とは分けて扱う方がレビュー・検証の単位が明確になる。

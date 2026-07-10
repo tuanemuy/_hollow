@@ -195,6 +195,32 @@ describe("D1MediaAssetRepository.findAbandonedSourceIntakes (integration, #468)"
     expect(rows).toHaveLength(2);
   });
 
+  // Port contract: rows sharing an `updatedAt` (e.g. a failed bulk
+  // commit stamped in the same second) are ordered by `id` ascending so
+  // limit-crossing sweeps are deterministic across implementations —
+  // the in-memory fakes rely on matching this ordering.
+  it("breaks updatedAt ties by id ascending across the limit boundary", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      ids.push(
+        await insertMedia(container, owner, {
+          kind: "source",
+          status: "pending",
+          updatedAt: OLD,
+        }),
+      );
+    }
+    const sorted = [...ids].sort();
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ mediaAssetRepository }) =>
+        mediaAssetRepository.findAbandonedSourceIntakes(CUTOFF, 2),
+    );
+    expect(rows.map((r) => r.id)).toEqual(sorted.slice(0, 2));
+  });
+
   it("excludes rows whose updatedAt equals the cutoff (strict <)", async () => {
     const container = createTestContainer();
     const owner = await seedUser(container);
