@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Clock, Trash2 } from "lucide-react";
 import { Suspense } from "react";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { formatJstDateTime } from "@/components/common/dateFormat";
 import { Icon } from "@/components/common/Icon";
 import { ListPageSkeleton } from "@/components/common/ListPageSkeleton";
 import { SectionErrorBoundary } from "@/components/common/SectionErrorBoundary";
@@ -23,9 +24,7 @@ type Props = {
 };
 
 function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("ja-JP", {
+  return formatJstDateTime(iso, {
     year: "numeric",
     month: "short",
     day: "numeric",

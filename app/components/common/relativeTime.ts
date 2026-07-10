@@ -1,3 +1,5 @@
+import { formatJstDateTime } from "./dateFormat";
+
 /**
  * Format an ISO 8601 instant as a Japanese relative time for list-style
  * timestamps (P22 "最終アクセス", and reusable elsewhere). Shared
@@ -31,7 +33,7 @@ export function formatRelativeTime(
   const days = Math.floor(diff / DAY_MS);
   if (days < ABSOLUTE_THRESHOLD_DAYS) return `${days} 日前`;
 
-  return new Date(instant).toLocaleDateString("ja-JP", {
+  return formatJstDateTime(instant, {
     year: "numeric",
     month: "long",
     day: "numeric",

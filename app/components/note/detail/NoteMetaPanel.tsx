@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { formatJstDateTime } from "@/components/common/dateFormat";
 import type {
   BacklinkDTO,
   NoteSourceFileDTO,
@@ -34,9 +35,7 @@ export type NoteMetaPanelProps = Readonly<{
 }>;
 
 function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("ja-JP", {
+  return formatJstDateTime(iso, {
     year: "numeric",
     month: "short",
     day: "numeric",

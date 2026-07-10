@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { formatJstDateTime } from "@/components/common/dateFormat";
 import { pillBtn } from "@/components/common/styles";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { isNotFoundError } from "@/core/application/errors";
@@ -107,7 +108,13 @@ export async function NoteHistoryList({
                   className="text-xs text-ink-secondary tabular-nums"
                   dateTime={rev.createdAt}
                 >
-                  {new Date(rev.createdAt).toLocaleString()}
+                  {formatJstDateTime(rev.createdAt, {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
                 </time>
               </div>
               <Link

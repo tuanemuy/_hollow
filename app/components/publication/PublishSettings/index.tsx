@@ -13,6 +13,7 @@ import {
   useTransition,
 } from "react";
 import { Dialog } from "@/components/common/Dialog";
+import { formatJstDateTime } from "@/components/common/dateFormat";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import {
@@ -75,16 +76,8 @@ import { QRCodeBlock } from "./QRCodeBlock";
 
 type Visibility = "private" | "unlisted" | "public";
 
-/**
- * Format a share link's last-access `Instant` (ISO string) into a localized
- * month/day + time label (mock `最終アクセス: 5 月 14 日 09:42`). Kept local —
- * `listSelectors.formatDate` is date-only and lives in the note domain, so
- * importing it here would add a cross-domain dependency for a different format.
- */
 function formatLastAccess(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("ja-JP", {
+  return formatJstDateTime(iso, {
     month: "long",
     day: "numeric",
     hour: "2-digit",

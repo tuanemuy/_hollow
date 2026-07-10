@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Hash } from "lucide-react";
 import { useOptimistic, useState, useTransition } from "react";
+import { formatJstDateTime } from "@/components/common/dateFormat";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import type { SerializedError } from "@/core/presentation/errorResponse";
@@ -32,16 +33,11 @@ type Props = {
   order: TagListOrder;
 };
 
-/**
- * Local last-used formatter. There is no shared date helper —
- * `trash/TrashList` and `note/NoteMetaPanel` each carry their own — so this
- * matches `TrashList`'s `ja-JP` short-date format (no time component).
- */
 function formatLastUsed(iso: string | null): string {
   if (iso === null) return "未使用";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "未使用";
-  return `最終使用 ${d.toLocaleDateString("ja-JP", {
+  return `最終使用 ${formatJstDateTime(iso, {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Pause, Play, Shield, ShieldOff } from "lucide-react";
 import { useId, useMemo, useState, useTransition } from "react";
+import { formatJstDateTime } from "@/components/common/dateFormat";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { pillBtn, pillBtnSmDense } from "@/components/common/styles";
@@ -89,12 +90,7 @@ function statusLabel(status: UserDTO["status"]): string {
 }
 
 function formatDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  // Pin the zone so SSR (Workers defaults Intl to UTC) and the client render
-  // the same string — otherwise the timezone gap triggers a hydration mismatch (#817).
-  return date.toLocaleDateString("ja-JP", {
-    timeZone: "Asia/Tokyo",
+  return formatJstDateTime(value, {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
