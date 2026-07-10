@@ -16,7 +16,7 @@ vi.mock("@tanstack/react-start", () => ({
 }));
 
 const mocks = vi.hoisted(() => ({
-  getRequest: vi.fn<() => { method: string }>(),
+  getRequest: vi.fn<() => { method: string; url?: string }>(),
   getRequestHeader: vi.fn<(name: string) => string | undefined>(),
   setResponseStatus: vi.fn<(status: number) => void>(),
   getContainer: vi.fn<() => Promise<{ config: { appUrl: string } }>>(),
@@ -125,6 +125,56 @@ describe("csrfMiddleware body", () => {
     const result = await csrfServer({ next });
 
     expect(result).toBe("ok");
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts a request whose Origin matches the served origin but not APP_URL (dev on a different port)", async () => {
+    // APP_URL is pinned to prod (https://app.example.com), but the app is
+    // served locally on http://localhost:3001 by vite. The browser Origin
+    // matches where it was served, so CSRF must pass.
+    mocks.getRequest.mockReturnValue({
+      method: "POST",
+      url: "http://localhost:3001/_serverFn/x",
+    });
+    mocks.getRequestHeader.mockImplementation((name) =>
+      name === "origin" ? "http://localhost:3001" : undefined,
+    );
+    const next = vi.fn().mockResolvedValue("ok");
+
+    await expect(csrfServer({ next })).resolves.toBe("ok");
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a cross-origin POST even when the request is served on a dev port", async () => {
+    // Served on localhost:3001, but the Origin is an attacker site. The
+    // served origin cannot be forged, so this must still be rejected.
+    mocks.getRequest.mockReturnValue({
+      method: "POST",
+      url: "http://localhost:3001/_serverFn/x",
+    });
+    mocks.getRequestHeader.mockImplementation((name) =>
+      name === "origin" ? "http://localhost:6006" : undefined,
+    );
+    const next = vi.fn();
+
+    await expect(csrfServer({ next })).rejects.toMatchObject({
+      name: "ForbiddenError",
+      code: "FORBIDDEN_CROSS_ORIGIN",
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("accepts a Referer that matches the served origin when Origin is absent (dev port)", async () => {
+    mocks.getRequest.mockReturnValue({
+      method: "POST",
+      url: "http://localhost:3001/_serverFn/x",
+    });
+    mocks.getRequestHeader.mockImplementation((name) =>
+      name === "referer" ? "http://localhost:3001/admin/design" : undefined,
+    );
+    const next = vi.fn().mockResolvedValue("ok");
+
+    await expect(csrfServer({ next })).resolves.toBe("ok");
     expect(next).toHaveBeenCalledTimes(1);
   });
 
