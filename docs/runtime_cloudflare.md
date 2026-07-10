@@ -353,7 +353,7 @@ Deploys **before** the metadata-first commit flow could leak a source blob with 
 3. Delete keys present in the bucket but absent from `media_assets`. `wrangler r2 object delete` takes a single `{bucket}/{key}` object path (not separate arguments) and needs `--remote` to touch the real bucket:
 
    ```bash
-   pnpm wrangler r2 object delete "<objects-bucket>/<key>" --remote
+   pnpm wrangler r2 object delete "<objects-bucket>/<key>" --remote --config wrangler.<stage>.toml
    ```
 
 This is a one-off operational task, not a recurring mechanism — everything created after #468 rides the sweep → purge chain automatically (`.issue/468/adr.md` ADR-002).

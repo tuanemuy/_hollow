@@ -122,13 +122,15 @@ export async function runRelayTick(
  *
  * The outbox prune runs first; nothing is committed until it succeeds,
  * so it may throw. Every step *after* it (processed-events, activity,
- * llm-call-log, purge, export-jobs, tag-merge-jobs) runs best-effort in
- * its own try/catch: a transient D1 failure there must not unwind the
- * already-committed outbox delete nor block the other post-outbox steps,
- * so it is swallowed and logged — the same per-row tolerance the worker
- * uses elsewhere (CLAUDE.md "worker → root"). A swallowed processed-events
- * failure surfaces as a `0` count in the result; purge and the two
- * job-state prunes are log-only and do not extend the returned contract.
+ * llm-call-log, export purge, export-jobs, tag-merge-jobs, source-intake
+ * sweep, orphan purge) runs best-effort in its own try/catch: a transient
+ * D1 failure there must not unwind the already-committed outbox delete
+ * nor block the other post-outbox steps, so it is swallowed and logged —
+ * the same per-row tolerance the worker uses elsewhere (CLAUDE.md
+ * "worker → root"). A swallowed processed-events failure surfaces as a
+ * `0` count in the result; the export purge, the two job-state prunes,
+ * and the media hygiene pair are log-only and do not extend the returned
+ * contract.
  */
 export async function runPruneTick(
   env: PrunerEnv,

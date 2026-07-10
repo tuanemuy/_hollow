@@ -46,6 +46,7 @@ class MutableFakeRepo {
   readonly store = new Map<string, MediaAsset>();
   afterList: (() => void) | null = null;
   failSaveIds = new Set<string>();
+  lastListLimit: number | null = null;
 
   put(asset: MediaAsset): void {
     this.store.set(asset.id, asset);
@@ -59,6 +60,7 @@ class MutableFakeRepo {
     before: Date,
     limit: number,
   ): Promise<readonly PendingMedia[]> {
+    this.lastListLimit = limit;
     // Port contract: ordered oldest-first (updatedAt, then id), matching
     // the D1 implementation, so limit-crossing tests see the same rows.
     const rows = Array.from(this.store.values())
@@ -182,9 +184,12 @@ describe("sweepAbandonedSourceIntakes (unit)", () => {
 
     const result = await sweepAbandonedSourceIntakes(container, {
       graceSec: 0,
+      batchSize: 7,
     });
 
     expect(result).toEqual({ swept: 1, failed: 0 });
+    // batchSize flows through to the candidate query's limit unchanged.
+    expect(repo.lastListLimit).toBe(7);
     const after = repo.store.get(candidate.id);
     expect(after?.status).toBe("orphan");
     expect(after?.updatedAt.getTime()).toBe(NOW.getTime());

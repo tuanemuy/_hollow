@@ -10,9 +10,20 @@ import type { MediaKind } from "@/core/domain/media/valueObject";
 import { SystemError, SystemErrorCode } from "../errors";
 import type { ServiceArgs } from "../types";
 
+/**
+ * Media kinds accepted by the upload entry points. `"source"` is
+ * excluded at the type level: pending `source` rows are created only
+ * inside the ingestion commit flow and attached within the same request
+ * — the safety premise the abandoned-intake sweep relies on to treat any
+ * aged `pending(kind='source')` row as reclaimable (#468 ADR-004).
+ * Accepting `source` here would let a legitimately attach-pending intake
+ * be swept and its blob silently deleted.
+ */
+export type UploadableMediaKind = Exclude<MediaKind, "source">;
+
 export type UploadMediaInput = Readonly<{
   actorUserId: UserId;
-  kind: MediaKind;
+  kind: UploadableMediaKind;
   mimeType: string;
   byteSize: number;
   bodyStream: ReadableStream<Uint8Array>;

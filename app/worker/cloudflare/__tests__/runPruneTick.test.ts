@@ -286,12 +286,14 @@ describe("runPruneTick", () => {
     expect(errors[0]?.message).toMatch(/export-jobs prune failed/);
   });
 
-  it("isolates a tag-merge prune failure without unwinding the tick", async () => {
+  it("isolates a tag-merge prune failure: the media hygiene pair still runs", async () => {
     mocks.pruneTagMergeJobs.mockRejectedValueOnce(new Error("d1 timeout"));
 
     const result = await runPruneTick(ENV);
 
     expect(result).toEqual({ outboxDeleted: 3, processedEventsDeleted: 5 });
+    expect(mocks.sweepAbandonedSourceIntakes).toHaveBeenCalledTimes(1);
+    expect(mocks.purgeOrphans).toHaveBeenCalledTimes(1);
     const errors = mocks.logger.byLevel("error");
     expect(errors).toHaveLength(1);
     expect(errors[0]?.message).toMatch(/tag-merge-jobs prune failed/);

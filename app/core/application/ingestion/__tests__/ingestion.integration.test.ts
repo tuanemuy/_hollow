@@ -1049,6 +1049,8 @@ describe("commitIngestionPreview", () => {
       }
       expect(error.code).toBe(SystemErrorCode.DataIntegrityError);
     }
+    // Pin the 3-UoW topology the mutation hook above relies on.
+    expect(uowRuns).toBe(3);
 
     // The main UoW rolled back whole: no note, job untouched.
     expect(await base.db.select().from(schema.notes)).toHaveLength(0);
@@ -1103,6 +1105,8 @@ describe("commitIngestionPreview", () => {
       }
       expect(error.code).toBe(SystemErrorCode.DataIntegrityError);
     }
+    // Pin the 3-UoW topology the mutation hook above relies on.
+    expect(uowRuns).toBe(3);
 
     expect(await base.db.select().from(schema.notes)).toHaveLength(0);
     const jobRows = await base.db

@@ -1,12 +1,15 @@
 import type { UserId } from "@/core/domain/identity/valueObject";
 import { MediaAsset } from "@/core/domain/media/entity";
-import type { MediaKind } from "@/core/domain/media/valueObject";
 import type { ServiceArgs } from "../types";
-import { buildStorageKey, enforceUploadLimit } from "./uploadMedia";
+import {
+  buildStorageKey,
+  enforceUploadLimit,
+  type UploadableMediaKind,
+} from "./uploadMedia";
 
 export type UploadMediaPresignedInput = Readonly<{
   actorUserId: string;
-  kind: MediaKind;
+  kind: UploadableMediaKind;
   mimeType: string;
   byteSize: number;
 }>;

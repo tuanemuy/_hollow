@@ -76,9 +76,9 @@ export const workerSecretSpecs = (
   //
   // ADR-007 (#110): the CI `wrangler secret bulk` step pushes the
   // single SOPS-decrypted file to every worker. This spec is therefore
-  // documentation-only until per-worker filtering lands; relay / dlq
-  // currently receive these secrets even though they do not consume
-  // them.
+  // documentation-only until per-worker filtering lands; relay / dlq /
+  // pruner currently receive these secrets even though they do not
+  // consume them (the pruner consumes only the R2 trio below).
   const llmDispatchExtras = [
     "SECRET_BOX_MASTER_KEY",
     "ADMIN_LLM_API_KEY",
