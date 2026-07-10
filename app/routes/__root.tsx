@@ -115,10 +115,8 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {/* Global route-transition indicator (Issue #819). Placed in
-            `RootDocument` — the `shellComponent`, which sits outside every
-            component/error/notFound boundary — so it covers the root
-            error/notFound screens' re-navigations exactly once (Issue #827);
+        {/* Global route-transition indicator (Issue #819). Lives in the shell
+            so it also covers the root error/notFound screens' re-navigations;
             decorative + `opacity-0` when idle, so it is inert on those screens. */}
         <RouteProgressBar />
         {children}
