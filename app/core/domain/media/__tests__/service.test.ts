@@ -331,6 +331,51 @@ describe("MediaService.listPurgeCandidates", () => {
   });
 });
 
+describe("MediaService.isAbandonedSourceIntake", () => {
+  // Direct predicate tests: the sweep path only feeds it rows already
+  // filtered by the repository query, so the `kind === 'source'` branch
+  // and the strict `<` boundary are pinned here (#468 ADR-002 / ADR-004).
+  it("returns true for a pending source strictly older than now - graceSec", () => {
+    const repo = new InMemoryRepo();
+    const asset = seedPendingSource(repo, 1, at(1_000));
+
+    // graceSec = 1s, now = 3s → cutoff = 2s. updatedAt = 1s < cutoff.
+    expect(MediaService.isAbandonedSourceIntake(asset, at(3_000), 1)).toBe(
+      true,
+    );
+  });
+
+  it("returns false when updatedAt equals the cutoff (strict `<`)", () => {
+    const repo = new InMemoryRepo();
+    const asset = seedPendingSource(repo, 1, at(1_000));
+
+    // graceSec = 1s, now = 2s → cutoff = 1s == updatedAt.
+    expect(MediaService.isAbandonedSourceIntake(asset, at(2_000), 1)).toBe(
+      false,
+    );
+  });
+
+  it("returns false for a pending non-source even past the grace window", () => {
+    const repo = new InMemoryRepo();
+    const asset = seedPending(repo, 1); // kind: image, updatedAt = T0
+
+    expect(MediaService.isAbandonedSourceIntake(asset, at(10_000), 1)).toBe(
+      false,
+    );
+  });
+
+  it("returns false for an attached source even past the grace window", () => {
+    const repo = new InMemoryRepo();
+    const pending = seedPendingSource(repo, 1, T0);
+    const { entity: attached } = MediaAsset.incrementRef(pending, T0);
+    expect(attached.status).toBe("attached");
+
+    expect(MediaService.isAbandonedSourceIntake(attached, at(10_000), 1)).toBe(
+      false,
+    );
+  });
+});
+
 describe("MediaService.listAbandonedSourceIntakes", () => {
   it("returns pending sources whose updatedAt is strictly older than now - graceSec", async () => {
     const repo = new InMemoryRepo();
