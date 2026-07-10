@@ -34,6 +34,16 @@ const DEFAULT_BATCH_SIZE = 100;
  * counted) so one bad row does not stop the batch; a row that changed
  * state between candidate listing and its UoW is re-checked fresh and
  * skipped.
+ *
+ * The fresh re-check closes only the listing → per-row-UoW transition.
+ * The deferred-batch UoW gives no isolation between that re-read and the
+ * write flush (read-your-write is unsupported by design), so a commit
+ * that attached the row in that residual window would be overwritten by
+ * the sweep's orphan. This is safe today because no code path attaches a
+ * pending source past the grace window: attach happens only inside the
+ * commit request that created the row (seconds, vs. a 24h grace). Any
+ * future path that attaches an aged pending source (e.g. intake
+ * resume / restore) must revisit this sweep's concurrency story.
  */
 export async function sweepAbandonedSourceIntakes(
   container: RequestContainer,

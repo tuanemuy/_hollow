@@ -256,7 +256,7 @@ export async function commitIngestionPreview({
       let sourceFileId: MediaAssetId | null = null;
       if (sourcePersist !== null) {
         const pending = await mediaAssetRepository.findById(
-          sourcePersist.mediaId as MediaAssetId,
+          sourcePersist.mediaId,
         );
         if (pending === null || !MediaAsset.isPending(pending)) {
           throw new SystemError(
@@ -368,9 +368,10 @@ export async function commitIngestionPreview({
 }
 
 // The main UoW re-reads the persisted row by id (metadata-first, #468),
-// so the handoff carries only the minted id.
+// so the handoff carries only the minted id — as the branded value
+// validated by stage (a)'s `MediaAsset.create`, so no cast downstream.
 type SourcePersist = Readonly<{
-  mediaId: string;
+  mediaId: MediaAssetId;
 }>;
 
 /**
@@ -441,21 +442,24 @@ async function prepareSourcePersist({
   // `put`. No `collectEvents` — like `uploadMedia` /
   // `uploadMediaPresigned`, a transient intake does not wake consumers;
   // the downstream attach / orphan / purge events drive the lifecycle.
-  await container.unitOfWorkProvider.run(async ({ mediaAssetRepository }) => {
-    const { entity: asset } = MediaAsset.create(
-      {
-        id: mediaId,
-        ownerId: actor,
-        kind: "source",
-        mimeType: job.entity.mimeType,
-        byteSize: job.entity.byteSize,
-        storageKey,
-        originalFileName: job.entity.originalFileName,
-      },
-      now,
-    );
-    await mediaAssetRepository.save(asset);
-  });
+  const persistedId = await container.unitOfWorkProvider.run(
+    async ({ mediaAssetRepository }) => {
+      const { entity: asset } = MediaAsset.create(
+        {
+          id: mediaId,
+          ownerId: actor,
+          kind: "source",
+          mimeType: job.entity.mimeType,
+          byteSize: job.entity.byteSize,
+          storageKey,
+          originalFileName: job.entity.originalFileName,
+        },
+        now,
+      );
+      await mediaAssetRepository.save(asset);
+      return asset.id;
+    },
+  );
 
   // On failure the pending row above stays behind; the abandoned-intake
   // sweep reclaims it after the grace window (#468).
@@ -463,7 +467,7 @@ async function prepareSourcePersist({
     container.objectStorage.put(storageKey, bytes, job.entity.mimeType),
   );
 
-  return { mediaId };
+  return { mediaId: persistedId };
 }
 
 /**

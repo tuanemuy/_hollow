@@ -372,7 +372,7 @@ describe("MediaService.listAbandonedSourceIntakes", () => {
       repo,
       2,
     );
-    expect(result.length).toBeLessThanOrEqual(2);
+    expect(result.map((a) => a.id)).toEqual([idOf(1), idOf(2)]);
   });
 });
 

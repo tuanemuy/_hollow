@@ -1,10 +1,19 @@
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import * as schema from "@/core/adapters/d1/schema";
-import { isForbiddenError, isNotFoundError } from "@/core/application/errors";
+import {
+  isForbiddenError,
+  isNotFoundError,
+  isSystemError,
+  SystemErrorCode,
+} from "@/core/application/errors";
 import { DirectoryErrorCode } from "@/core/domain/directory/errorCode";
 import { isBusinessRuleError } from "@/core/domain/error";
 import { IngestionErrorCode } from "@/core/domain/ingestion/errorCode";
+import {
+  type ObjectStorage,
+  StorageUnavailableError,
+} from "@/core/domain/media/ports/objectStorage";
 import type { NoteId as DomainNoteId } from "@/core/domain/note/valueObject";
 import {
   setupTestContainer,
@@ -199,6 +208,35 @@ async function seedInstanceSettings(
     version: 1,
     updatedAt: iso(0),
   });
+}
+
+/**
+ * Test-local `ObjectStorage` whose `put` always raises
+ * `StorageUnavailableError`, driving the commit stage (a) put-failure
+ * path (same wrapper pattern as `purgeOrphans.integration.test.ts`'s
+ * delete-throwing stub). Other methods delegate to the wrapped
+ * in-memory storage so unrelated code paths still work.
+ */
+class PutThrowingObjectStorage implements ObjectStorage {
+  constructor(private readonly inner: ObjectStorage) {}
+  async put(): Promise<void> {
+    throw new StorageUnavailableError("simulated R2 put failure");
+  }
+  get(key: string) {
+    return this.inner.get(key);
+  }
+  stat(key: string) {
+    return this.inner.stat(key);
+  }
+  delete(key: string) {
+    return this.inner.delete(key);
+  }
+  presignDownload(key: string, ttlSec: number) {
+    return this.inner.presignDownload(key, ttlSec);
+  }
+  presignUpload(key: string, contentType: string, ttlSec: number) {
+    return this.inner.presignUpload(key, contentType, ttlSec);
+  }
 }
 
 function makeStream(text: string): {
@@ -790,6 +828,13 @@ describe("commitIngestionPreview", () => {
       .where(eq(schema.ingestionJobs.id, jobId));
     expect(jobRows[0]?.status).toBe("previewing");
 
+    // The temp blob is preserved too — temp delete runs only after a
+    // successful UoW — so the same job can be re-committed.
+    const tempStorage = base.tempFileStorage as unknown as {
+      has(key: string): boolean;
+    };
+    expect(tempStorage.has(tempKey)).toBe(true);
+
     // Sweep (grace 0, clock advanced past the row's updatedAt) orphans
     // the abandoned intake.
     const sweepTime = new Date(commitTime.getTime() + 60_000);
@@ -812,6 +857,90 @@ describe("commitIngestionPreview", () => {
 
     expect(await base.db.select().from(schema.mediaAssets)).toHaveLength(0);
     await expect(base.objectStorage.stat(storageKey)).rejects.toThrow();
+  });
+
+  // Issue #468 (ADR-002): metadata-first means stage (a) commits the
+  // pending row BEFORE the R2 put, so a put failure leaves a blobless
+  // `pending(kind='source')` row — never a rowless blob — and that row
+  // rides the sweep → purge chain to reclaim. Guards the row-before-put
+  // ordering: with the order reversed, a failed put would leave no
+  // pending row and this test fails.
+  it("leaves a reclaimable pending row and no blob when the source put fails (Issue #468)", async () => {
+    const base = getContainer();
+    await seedInstanceSettings(base);
+    const owner = await seedUser(base);
+    await seedDirectory(base, owner);
+    const tempKey = `${owner}/ingestion/put-failure-1`;
+    await base.tempFileStorage.put(tempKey, new ArrayBuffer(4));
+    const jobId = await seedIngestionJob(base, {
+      ownerId: owner,
+      status: "previewing",
+      tempStorageKey: tempKey,
+      mimeType: "application/pdf",
+      originalFileName: "report.pdf",
+      byteSize: 4,
+    });
+
+    const commitTime = new Date("2026-06-01T00:00:00.000Z");
+    const withClock = (at: Date): TestContainer => ({
+      ...base,
+      clock: { now: () => at },
+    });
+
+    try {
+      await commitIngestionPreview({
+        container: {
+          ...withClock(commitTime),
+          objectStorage: new PutThrowingObjectStorage(base.objectStorage),
+        },
+        input: {
+          actorUserId: owner,
+          jobId: jobId,
+          modifications: {},
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      if (!isSystemError(error)) {
+        throw error;
+      }
+      expect(error.code).toBe(SystemErrorCode.ExternalApiError);
+    }
+
+    // Stage (a)'s pending/source row survives the failed put; the blob
+    // was never written.
+    const mediaRows = await base.db.select().from(schema.mediaAssets);
+    expect(mediaRows).toHaveLength(1);
+    expect(mediaRows[0]?.kind).toBe("source");
+    expect(mediaRows[0]?.status).toBe("pending");
+    const storageKey = mediaRows[0]?.storageKey as string;
+    await expect(base.objectStorage.stat(storageKey)).rejects.toThrow();
+
+    // Note and job are untouched — the failure happened before the main
+    // UoW, so the commit can simply be retried.
+    expect(await base.db.select().from(schema.notes)).toHaveLength(0);
+    const jobRows = await base.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
+    expect(jobRows[0]?.status).toBe("previewing");
+
+    // The stranded row rides the standard reclaim chain: sweep orphans
+    // it, purge deletes it (the `delete` idempotency contract covers the
+    // missing blob).
+    const sweepTime = new Date(commitTime.getTime() + 60_000);
+    const sweepResult = await sweepAbandonedSourceIntakes(
+      withClock(sweepTime),
+      { graceSec: 0 },
+    );
+    expect(sweepResult).toEqual({ swept: 1, failed: 0 });
+
+    const purgeTime = new Date(sweepTime.getTime() + 60_000);
+    const purgeResult = await purgeOrphans(withClock(purgeTime), {
+      orphanAgeSec: 0,
+    });
+    expect(purgeResult).toEqual({ purged: 1, failed: 0 });
+    expect(await base.db.select().from(schema.mediaAssets)).toHaveLength(0);
   });
 
   // Issue #127: the ingestion commit path runs the same

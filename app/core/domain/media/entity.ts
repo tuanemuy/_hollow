@@ -37,7 +37,10 @@ type MediaAssetBase = Readonly<{
  * Just uploaded; not yet referenced. `refCount === 0` while in this
  * state; the first `incrementRef` (or explicit `markAttached`) moves the
  * asset to `attached`. Abandoning a pending intake transitions directly
- * to `orphan`.
+ * to `orphan`. For `kind='source'`, `updatedAt` acts as the
+ * abandoned-intake age anchor (#468): the sweep worker reclaims pending
+ * sources with `updatedAt < now - grace`, so re-stamping `updatedAt` on
+ * such a row defers its reclaim.
  */
 export type PendingMedia = MediaAssetBase &
   Readonly<{ status: "pending"; refCount: 0 }>;

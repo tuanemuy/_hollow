@@ -57,7 +57,7 @@
 | 24h 以上前の pending/image（他 kind） | Sweep | 対象外（ADR-004） |
 | 同じ集合に 2 回実行 | Sweep | クエリレベルで冪等（orphan 化済み行は候補に載らない。候補列挙〜per-row UoW 間の遷移は fresh `findById` ガードでスキップ） |
 | orphan 化後、orphan 猶予経過 | PurgeOrphans | blob + 行が消える（回収チェーン接続） |
-| blob なし pending/source（put 失敗相当） | Sweep → PurgeOrphans | `ObjectStorage.delete` の冪等性（missing key = 成功）により purge 完走、行が消える |
+| blob なし pending/source（put 失敗相当） | Sweep → PurgeOrphans | `ObjectStorage.delete` の冪等性（missing key = 成功）により purge 完走、行が消える（commit 実経路の put 失敗からの回収は CommitIngestionPreview の行で検証） |
 | 個別行の save 失敗 | Sweep | failed 計上 + ログ、他の行は続行 |
 
 ## HandleNotePurgedEvent

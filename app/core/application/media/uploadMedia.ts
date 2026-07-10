@@ -32,10 +32,12 @@ const DOWNLOAD_TTL_SEC = 15 * 60;
  * presigned download URL.
  *
  * Storage and metadata are deliberately split across the UoW boundary —
- * R2 has no two-phase commit, so the canonical ordering is "upload bytes
- * first, then persist metadata". If metadata persistence fails, the
- * orphan R2 object is reclaimed by the `PurgeOrphans` worker on its next
- * sweep (the orphan threshold gives a safe grace window).
+ * R2 has no two-phase commit, so this path uploads the bytes first and
+ * persists metadata after. If metadata persistence fails, the blob is
+ * left behind with no `MediaAsset` row, and the DB-driven purge pipeline
+ * cannot reach it — an accepted edge since #452. Reclaiming it would
+ * require the metadata-first ordering used by the ingestion commit flow
+ * (#468 ADR-002).
  */
 export async function uploadMedia({
   container,
