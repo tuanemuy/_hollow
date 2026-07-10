@@ -5,6 +5,7 @@ import { BrandLockup } from "@/components/common/BrandLogo";
 import { Icon } from "@/components/common/Icon";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { UploadButton } from "@/components/ingestion/UploadButton";
+import { HeaderCenter } from "./HeaderCenter";
 import { MenuButton } from "./MenuButton";
 import {
   APP_HEADER,
@@ -14,7 +15,6 @@ import {
   HEADER_NEW_NOTE_DEMOTE,
   SEARCH_BOX_ICON,
   SEARCH_BOX_INPUT,
-  SEARCH_BOX_WRAPPER,
 } from "./styles";
 
 export function Header() {
@@ -26,7 +26,7 @@ export function Header() {
           <BrandLockup />
         </Link>
       </div>
-      <div className={SEARCH_BOX_WRAPPER}>
+      <HeaderCenter>
         <form action="/" method="get">
           <label
             htmlFor="header-search"
@@ -44,7 +44,7 @@ export function Header() {
             className={SEARCH_BOX_INPUT}
           />
         </form>
-      </div>
+      </HeaderCenter>
       <div className={APP_HEADER_RIGHT}>
         {/* Upload is the primary action: accent fill, placed first. New-note
             is demoted to a desktop text button. Both collapse to a 36px

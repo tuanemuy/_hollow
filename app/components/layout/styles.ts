@@ -35,6 +35,18 @@ export const HEADER_NEW_NOTE_DEMOTE =
 
 export const SEARCH_BOX_WRAPPER = "max-w-[460px] w-full mx-auto relative";
 
+// Mobile P12 editor orientation label (Issue #824), mirroring the mock
+// `.header-doc` (`spec/design/pages/mobile/P12-editor.html`): `text-sm` /
+// `font-medium` / `text-ink` with `truncate` (overflow-hidden + ellipsis +
+// nowrap). No `text-center` — the mock has no `text-align`, so it is
+// left-aligned, which also plays nicely with the trailing ellipsis. `sm:hidden`
+// keeps it mobile-only. `min-w-0` here lets the label ellipsize inside the
+// central grid item; the item itself (`HeaderCenter` root) also needs `min-w-0`
+// so the `minmax(auto,1fr)` track does not grow to the nowrap min-content and
+// push the header wider (ADR-004 — both are required).
+export const HEADER_DOC =
+  "sm:hidden truncate text-sm font-medium text-ink min-w-0";
+
 export const SEARCH_BOX_INPUT =
   "w-full h-9 border-0 bg-surface rounded-pill pl-[38px] pr-4 text-sm text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary hover:bg-surface-hover focus:bg-surface-hover";
 
