@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Suspense } from "react";
 import { AdminTableSkeleton } from "@/components/common/AdminTableSkeleton";
+import { formatBytes } from "@/components/common/byteSize";
 import { Icon } from "@/components/common/Icon";
 import { SectionErrorBoundary } from "@/components/common/SectionErrorBoundary";
 import {
@@ -40,18 +41,6 @@ const ALERT_TONE_ICON: Record<AlertDTO["severity"], LucideIcon> = {
 function formatNumber(value: number | null): string {
   if (value === null) return "—";
   return new Intl.NumberFormat("ja-JP").format(value);
-}
-
-function formatBytes(value: number | null): string {
-  if (value === null) return "—";
-  if (value === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.min(
-    units.length - 1,
-    Math.floor(Math.log(value) / Math.log(1024)),
-  );
-  const scaled = value / 1024 ** i;
-  return `${scaled.toFixed(scaled >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
 function LimitsCard({ limits }: { limits: InstanceSettingsDTO["limits"] }) {

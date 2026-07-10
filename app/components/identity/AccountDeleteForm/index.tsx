@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, Trash2 } from "lucide-react";
 import { useId, useState, useTransition } from "react";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { formatBytes } from "@/components/common/byteSize";
 import { Icon } from "@/components/common/Icon";
 import { clearAppShellCache } from "@/components/common/routerInvalidate";
 import {
@@ -47,20 +48,6 @@ import {
 import { deleteAccountFn } from "./action";
 
 const CONFIRM_WORD = "DELETE";
-
-// Local byte formatter — the raw byte total comes from the aggregation
-// DTO and humanization is a presentation concern (#573). Mirrors the
-// admin metrics helper; kept inline rather than shared (YAGNI).
-function formatBytes(value: number): string {
-  if (value === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.min(
-    units.length - 1,
-    Math.floor(Math.log(value) / Math.log(1024)),
-  );
-  const scaled = value / 1024 ** i;
-  return `${scaled.toFixed(scaled >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
-}
 
 export function AccountDeleteForm({
   user,
