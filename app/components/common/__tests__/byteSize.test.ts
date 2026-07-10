@@ -49,7 +49,9 @@ describe("formatBytes", () => {
     expect(formatBytes(1024 ** 4)).toBe("1.0 TB");
   });
 
-  it("drops the decimal once the scaled value reaches 100", () => {
+  it("drops the decimal exactly at the scaled-value 100 boundary", () => {
+    // brackets the `scaled >= 100` switch: 99 keeps the decimal, 100 drops it
+    expect(formatBytes(99 * 1024)).toBe("99.0 KB");
     expect(formatBytes(100 * 1024)).toBe("100 KB");
     expect(formatBytes(100 * 1024 ** 2)).toBe("100 MB");
   });
@@ -58,14 +60,19 @@ describe("formatBytes", () => {
     expect(formatBytes(1024 ** 5)).toBe("1024 TB");
   });
 
-  it("rounds to one decimal within a unit", () => {
-    expect(formatBytes(1536)).toBe("1.5 KB");
+  it("applies toFixed rounding within a unit", () => {
+    expect(formatBytes(1536)).toBe("1.5 KB"); // exact half, no rounding
+    // 1280 / 1024 = 1.25 → toFixed(1) rounds to "1.3" (same IEEE754 rounding
+    // the sibling formatMegabytes locks at 1.25 MiB → "1.3 MB")
+    expect(formatBytes(1280)).toBe("1.3 KB");
   });
 
-  it("locks representative in-app thresholds", () => {
-    // admin limits: a per-day upload cap around tens of MB
-    expect(formatBytes(50 * 1024 * 1024)).toBe("50.0 MB");
-    // account-deletion impact: an aggregated media total in the GB range
+  it("locks representative in-app limit thresholds", () => {
+    // instance limits (admin/Metrics): export-artifact cap renders 0-decimal
+    // once scaled >= 100, ingestion cap keeps one decimal
+    expect(formatBytes(256 * 1024 ** 2)).toBe("256 MB");
+    expect(formatBytes(32 * 1024 ** 2)).toBe("32.0 MB");
+    // account-deletion impact (identity/AccountDeleteForm): a GB-range total
     expect(formatBytes(2 * 1024 ** 3)).toBe("2.0 GB");
   });
 });
