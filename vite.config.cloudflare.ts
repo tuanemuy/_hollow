@@ -5,15 +5,12 @@ import viteReact from "@vitejs/plugin-react";
 import rsc from "@vitejs/plugin-rsc";
 import { defineConfig } from "vite";
 
-// The Worker fetch entry is selected by build mode: `production`
-// (`pnpm build`, `deploy:*`) keeps the dev-import-free prod entry from
-// `wrangler.toml [main]`; every other mode (`pnpm dev`, `pnpm build:local`)
-// swaps in the dev entry that wires the inline relay / R2 proxy. The
-// entry that `@cloudflare/vite-plugin` bundles is `wrangler.toml [main]`,
-// not tanstackStart's `server.entry`, so the mode switch has to override
-// `main` via the plugin's `config` customizer. A misconfigured dev path
-// only breaks dev (its `main` fails to resolve) — production always falls
-// through to the prod entry, so dev code can never reach a prod bundle.
+// The Worker fetch entry is selected by build mode: `production` (`pnpm
+// build`, `deploy:*`) keeps the dev-import-free prod entry; every other
+// mode (`pnpm dev`, `pnpm build:local`) swaps in the dev entry that wires
+// the inline relay / R2 proxy. A misconfigured dev path only breaks dev
+// (its `main` fails to resolve) — production always falls through to the
+// prod entry, so dev code can never reach a prod bundle.
 const DEV_SERVER_ENTRY = "app/server.cloudflare.dev.ts";
 
 export default defineConfig(({ mode }) => ({
