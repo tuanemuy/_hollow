@@ -6,7 +6,8 @@ import { useEffect, useRef } from "react";
  * Inline editor (spec C2). Renders the saved HTML as-is
  * and makes its **allow-listed block elements** (`<p>` / `<h1-6>` /
  * `<li>` / `<td>` / `<th>` / `<blockquote>` / `<figcaption>` /
- * `<caption>` / `<dt>` / `<dd>`) contentEditable — excluding pure
+ * `<caption>` / `<dt>` / `<dd>` / `<pre>` — see invariant 6)
+ * contentEditable — excluding pure
  * containers of editable blocks (see invariant 1) — so users can edit
  * decorated text in place without losing structure (spec C2-2).
  *
@@ -301,6 +302,11 @@ function applyEditable(host: HTMLElement, enabled: boolean): void {
     // The mixed case (text + nested editable block) is covered by
     // HTML5's contentEditable semantics — both can carry `true` without
     // conflict, and the outer text becomes editable.
+    //
+    // A container mixing media and editable blocks
+    // (`<li><img><p>…</p></li>`) is also skipped, leaving the
+    // media-adjacent area read-only — a known residual gap, out of
+    // scope for #287 (see `.issue/287/plan.md`).
     //
     // `<pre>` bypasses the gate explicitly: it is an opaque region with
     // its own invariants (highlighting / serialize-time text

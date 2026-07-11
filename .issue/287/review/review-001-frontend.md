@@ -26,7 +26,7 @@
   - 場所: `app/components/note/editor/InlineEditor.tsx:7`
   - 理由: 冒頭の「makes its **text-bearing block elements** (`<p>` / … ) contentEditable」は #287 以後は不正確（media-only の `<p><img></p>` や空 `<p>` も decorate される）。同じ JSDoc 内の Core invariant 1（21-33 行）は新規則に更新済みなので、1 つのドキュメンテーションコメントの中で冒頭と不変条件が食い違う。plan.md ステップ 1-5 は「ファイル先頭 JSDoc の不変条件 1 に反映」としており文言上は満たしているが、CLAUDE.md のコメント規約（残すコメントは正確であること）に照らすと冒頭サマリーの取り残しは修正すべき。テストファイル側の contract docstring は正しく更新されているだけに、実装側だけ半端になっている。
   - 提案: 冒頭を「makes its allow-listed block elements contentEditable（純粋コンテナを除く — invariant 1 参照）」程度に改め、"text-bearing" の限定を外す。
-- **[W-002]** TC-007 で実機確認された「保存済み編集のサイレント消失」のフォローアップ Issue が未起票のままマージに向かっている
+- **[W-002]** TC-007 で実機確認された「保存済み編集のサイレント消失」のフォローアップ Issue が未起票のままマージに向かっている → Issue #840 を起票して対応済み
   - 場所: `app/components/note/editor/InlineEditor.tsx:309`（新ゲートが `<td><br></td>` / `<p><br></p>` を新たに decorate することがトリガー面を広げる）
   - 理由: rollback 粒度・snapshot 追従は #233 由来の既存設計でスコープ外という整理自体は妥当（Blocker としない理由）。ただし TC-007 の観察は「空セルに 1 文字入力 → プレースホルダ `<br>` remove を含むバッチ → エディタ全体が最終 rebuild snapshot まで巻き戻り → 以降の入力の emit で巻き戻り後本文が自動保存され、**一度保存済みだった編集が無警告で失われる**」という具体的なデータ損失経路であり、この PR が「クリックして入力できるように見える」入口（空 td/`<br>` 付きブロック）を新設したことで初めて自然な操作列として踏めるようになった。`gh issue list` を検索した限り該当のフォローアップ Issue はまだ存在せず、progress.md の「Phase 4 で起票」が実行されない限り追跡が失われる。
   - 提案: マージ前（または同時）にフォローアップ Issue を起票し、PR 本文から参照する。Issue には TC-007 の再現手順と候補対策（rollback 粒度の局所化 / 許可 emit 時の snapshot 追従 / 「テキスト追加と同一バッチでの placeholder `<br>` remove」の classifier 許容 — 3 案目は分類器の条件 1 行で済む可能性があり最小）を転記する。
