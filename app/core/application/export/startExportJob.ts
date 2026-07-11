@@ -11,6 +11,7 @@ import type { NoteId } from "@/core/domain/note/valueObject";
 import type { PublicationVisibility } from "@/core/domain/publication/valueObject";
 import { NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
+import { resolveExportDesignTokens } from "./designTokens";
 
 /**
  * DTO mirror of `ExportOptions`. The PDF paper size is `null` for
@@ -81,8 +82,17 @@ export async function startExportJob({
         : PdfPaperSize.create(input.options.pdfPaperSize),
   });
 
-  const note = await container.unitOfWorkProvider.run(
-    async ({ noteRepository, publicationStateRepository }) => {
+  // Only the html/pdf paths inject `:root` design tokens; markdown export
+  // does not go through the HTML wrapper, so skip the instance-settings read
+  // for it (avoids a needless query).
+  const needsDesignTokens = input.format === "html" || input.format === "pdf";
+
+  const { note, designTokens } = await container.unitOfWorkProvider.run(
+    async ({
+      noteRepository,
+      publicationStateRepository,
+      instanceSettingsRepository,
+    }) => {
       const found = await noteRepository.findById(input.targetNoteId as NoteId);
       if (found === null || found.entity.status !== "active") {
         throw new NotFoundError(
@@ -107,7 +117,12 @@ export async function startExportJob({
         visibilityMap,
         ownerMap,
       });
-      return found.entity;
+      const tokens = needsDesignTokens
+        ? resolveExportDesignTokens(
+            (await instanceSettingsRepository.get()).entity,
+          )
+        : {};
+      return { note: found.entity, designTokens: tokens };
     },
   );
 
@@ -127,7 +142,7 @@ export async function startExportJob({
     now,
   );
 
-  const bytes = await renderArtifactBytes(container, job, note);
+  const bytes = await renderArtifactBytes(container, job, note, designTokens);
   return {
     artifact: {
       fileName: `${fileBaseName(note)}.${EXTENSION_BY_FORMAT[input.format]}`,
@@ -141,6 +156,7 @@ async function renderArtifactBytes(
   container: ServiceArgs<StartExportJobInput>["container"],
   job: ReturnType<typeof ExportJob.create>["entity"],
   note: Note,
+  designTokens: Readonly<Record<string, string>>,
 ): Promise<ArrayBuffer> {
   switch (job.format) {
     case "html": {
@@ -149,7 +165,7 @@ async function renderArtifactBytes(
         {
           includeFrontMatter: job.options.includeFrontMatter,
           frontMatter: note.frontMatter,
-          designTokens: container.exportDesignTokens,
+          designTokens,
         },
       );
       return new TextEncoder().encode(html).buffer as ArrayBuffer;
@@ -175,7 +191,7 @@ async function renderArtifactBytes(
         {
           includeFrontMatter: job.options.includeFrontMatter,
           frontMatter: note.frontMatter,
-          designTokens: container.exportDesignTokens,
+          designTokens,
         },
       );
       return container.pdfRenderer.render(wrapped, {

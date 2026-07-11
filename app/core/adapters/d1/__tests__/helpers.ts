@@ -138,7 +138,6 @@ export function createTestContainer(): TestContainer {
     markdownRenderer: new HtmlToMarkdownRenderer(),
     pdfRenderer: new StubPdfRenderer(),
     archiveBuilder: new InMemoryZipArchiveBuilder(),
-    exportDesignTokens: Object.freeze({}),
     exportLimits: { maxConcurrentJobs: 3, maxJobsPerDay: 50 },
     // The relay-worker variant of the outbox repo (no PendingBatch).
     // UoW-internal saves go through a per-UoW instance constructed
