@@ -44,6 +44,11 @@
 | modifications.directoryNameToCreate | Commit | 新ディレクトリ作成 |
 | overwriteNoteId 指定 | Commit | 既存ノートを SaveNote ロジックで更新 |
 | 不正な状態（pending） | Commit | `BusinessRuleError('invalid_status_for_commit')` |
+| temp blob 欠損（tempStorageKey は非 null だが実体なし） | Commit | source 永続化をスキップして commit は完走（Note 作成・job saved・`sourceFileId` は null）。pending 行も blob も残らず（skip 判定が行 insert より先）、warn ログで観測可能（Issue #468） |
+| main UoW ロールバック（例: 実在しない directoryId） | Commit | `pending(kind='source')` 行と source blob が残存し、outbox に `media.*` は残らない。temp blob は保全され、同一 job の再 commit が新しい pending 行で完走する（放棄行は pending のまま干渉しない）。放棄行のみ SweepAbandonedSourceIntakes → PurgeOrphans で自動回収され、再 commit した source は無傷（Issue #468） |
+| ステージ (a) の R2 put 失敗（pending 行 save 後） | Commit | `SystemError(EXTERNAL_API_ERROR)` で reject。blob なしの `pending(kind='source')` 行が残り（行なし blob は生じない）、note / job は未変更・outbox に `media.*` は残らないまま SweepAbandonedSourceIntakes → PurgeOrphans で行が回収される（Issue #468） |
+| ステージ (a) 完了後・main UoW 前に pending 行が消失 | Commit | `SystemError(DATA_INTEGRITY_ERROR)` で reject、main UoW 全体がロールバック（note 未作成、job は previewing のまま）（Issue #468） |
+| ステージ (a) 完了後・main UoW 前に pending 行が非 pending へ遷移 | Commit | `SystemError(DATA_INTEGRITY_ERROR)` で reject、main UoW 全体がロールバック（note 未作成、job は previewing のまま）（Issue #468） |
 
 ## DiscardIngestionPreview
 

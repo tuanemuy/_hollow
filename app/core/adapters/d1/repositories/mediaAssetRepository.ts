@@ -3,7 +3,7 @@ import { SystemError, SystemErrorCode } from "@/core/application/errors";
 import type { IdGenerator } from "@/core/application/ports/idGenerator";
 import { isRehydrationError } from "@/core/domain/error";
 import type { UserId } from "@/core/domain/identity/valueObject";
-import { MediaAsset } from "@/core/domain/media/entity";
+import { MediaAsset, type PendingMedia } from "@/core/domain/media/entity";
 import type {
   MediaAssetRepository,
   MediaListOpts,
@@ -170,6 +170,35 @@ export class D1MediaAssetRepository implements MediaAssetRepository {
         .orderBy(asc(mediaAssets.updatedAt), asc(mediaAssets.id))
         .limit(limit);
       return rows.map((row) => this.toMediaAsset(row));
+    });
+  }
+
+  findAbandonedSourceIntakes(
+    before: Date,
+    limit: number,
+  ): Promise<readonly PendingMedia[]> {
+    return mapDbError("Failed to find abandoned source intakes", async () => {
+      const cutoff = before.toISOString();
+      // Served by `idx_media_status_updated (status, updated_at)`; the
+      // extra `kind` filter is a residual predicate on a tiny candidate
+      // set, so no dedicated index is needed (#468).
+      const rows = await this.db
+        .select()
+        .from(mediaAssets)
+        .where(
+          and(
+            eq(mediaAssets.status, "pending"),
+            eq(mediaAssets.kind, "source"),
+            lt(mediaAssets.updatedAt, cutoff),
+          ),
+        )
+        .orderBy(asc(mediaAssets.updatedAt), asc(mediaAssets.id))
+        .limit(limit);
+      // The SQL status filter guarantees pending rows; the filter is a
+      // static narrowing to the port's `PendingMedia[]` contract.
+      return rows
+        .map((row) => this.toMediaAsset(row))
+        .filter(MediaAsset.isPending);
     });
   }
 

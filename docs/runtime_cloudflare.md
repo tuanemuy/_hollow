@@ -318,7 +318,48 @@ Three cron triggers ship in `wrangler.<stage>.toml`:
 | ------- | -------------- | -------------------------------------------------------------------- |
 | Relay   | every 5 min    | Safety-net publish loop — kicks in when the Service Binding fails.   |
 | Indexer | every 5 min    | Drains `index_jobs` rows produced by note.* / publication.* dispatch.|
-| Pruner  | daily          | Deletes processed (and not-quarantined) outbox rows, idempotency records (`processed_events`), and activity-log read models beyond retention. |
+| Pruner  | daily          | Deletes processed (and not-quarantined) outbox rows, idempotency records (`processed_events`), and activity-log read models beyond retention. Also drives the R2 hygiene steps: `purgeExpiredExports` (#783) and the media pair `sweepAbandonedSourceIntakes` → `purgeOrphans` (#468). |
+
+### Media storage hygiene (Issue #468)
+
+The daily pruner tick ends with two best-effort media steps built on a purge `RequestContainer` (UoW + `OBJECT_STORAGE` binding + R2 presign secrets — all five of the binding, the three presign secrets, and the `R2_OBJECT_BUCKET_NAME` var must be present (all-or-nothing, `readRequestServerConfig`) or the container falls back to an unavailable objectStorage and the R2 deletes fail):
+
+1. `sweepAbandonedSourceIntakes` — orphans `pending(kind='source')` rows older than 24h. These are leftovers of ingestion commits whose main UoW rolled back (or whose R2 `put` failed) after the metadata-first stage persisted the row.
+2. `purgeOrphans` — transitions orphans older than 24h to `deleting` and finalises the purge (R2 delete + DB delete). This reclaims all orphaned media, not just sources.
+
+End-to-end reclaim latency for an abandoned intake is therefore ~2–4 days: each 24h grace is quantized to the daily tick, and the strict `<` cutoff means an intake abandoned just after a tick is still in grace at the next one (orphaned ≈48h after abandonment); the orphan re-stamp then needs one more tick — occasionally two, if millisecond jitter leaves it a hair inside the purge grace — before the purge step (which runs after the sweep in the same tick) deletes it.
+
+#### One-time manual reconcile for pre-#468 leaked blobs
+
+Deploys **before** the metadata-first commit flow could leak a source blob with no `media_assets` row (put succeeded, DB commit failed). Those blobs predate the invariant "every blob has a row from birth" and are invisible to the sweep. If reclaiming them ever matters (occurrence is expected to be near-zero — only commit DB failures between #452 and #468), reconcile once by hand:
+
+1. List source keys in the objects bucket. wrangler (4.x) has no `r2 object list` command, so enumerate via the S3-compatible API — reuse the presign credentials (`R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`) — or the Cloudflare dashboard. There is no bucket-wide `source/` prefix (keys are `{ownerId}/source/{mediaId}`), so list everything and filter:
+
+   ```bash
+   AWS_ACCESS_KEY_ID=<R2_ACCESS_KEY_ID> AWS_SECRET_ACCESS_KEY=<R2_SECRET_ACCESS_KEY> \
+   aws s3api list-objects-v2 \
+     --endpoint-url "https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com" \
+     --region auto \
+     --bucket <objects-bucket> \
+     --query 'Contents[].Key' --output text | tr '\t' '\n' | grep '/source/'
+   ```
+
+   `--region auto` matters: the AWS CLI demands a region even with `--endpoint-url`, so on a machine without a default region the command fails with "You must specify a region". R2 expects `auto`.
+
+2. Compare against DB rows (note `--remote`, as in the DLQ recovery examples above):
+
+   ```bash
+   pnpm wrangler d1 execute <d1-database-name> --remote --config wrangler.<stage>.toml \
+     --command "SELECT storage_key FROM media_assets WHERE kind = 'source';"
+   ```
+
+3. Delete keys present in the bucket but absent from `media_assets`. `wrangler r2 object delete` takes a single `{bucket}/{key}` object path (not separate arguments) and needs `--remote` to touch the real bucket:
+
+   ```bash
+   pnpm wrangler r2 object delete "<objects-bucket>/<key>" --remote --config wrangler.<stage>.toml
+   ```
+
+This is a one-off operational task, not a recurring mechanism — everything created after #468 rides the sweep → purge chain automatically (`.issue/468/adr.md` ADR-002).
 
 ## Retry budget
 

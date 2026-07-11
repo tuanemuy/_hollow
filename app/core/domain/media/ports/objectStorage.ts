@@ -74,7 +74,15 @@ export interface ObjectStorage {
   /**
    * Remove the object at `key`. Implementations treat "already gone"
    * as success; only transient backend failures surface as
-   * `StorageUnavailableError`.
+   * `StorageUnavailableError`. `delete` never throws
+   * `StorageNotFoundError` for a missing key.
+   *
+   * This idempotency is a hard port contract, not a convenience: the
+   * #468 reclaim chain routinely feeds rows with no backing blob into
+   * `MediaService.purge` (a commit whose `put` failed leaves a `pending`
+   * row and no bytes). An adapter that raised `StorageNotFoundError` on
+   * a missing key would stall such rows in `deleting` forever (#468
+   * ADR-002).
    */
   delete(key: string): Promise<void>;
 

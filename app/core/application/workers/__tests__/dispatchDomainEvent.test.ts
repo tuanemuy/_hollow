@@ -567,6 +567,22 @@ function mediaUploadedEvent(): DomainEvent {
   } as DomainEvent;
 }
 
+// `media.orphaned` IS part of the production taxonomy (overwrite /
+// reconcile decrements, and the #468 sweep emits it cron-driven), but the
+// consumer intentionally skips it: orphan reclamation is TTL-based via the
+// pruner, not event-driven (Issue #159 ADR-003).
+function mediaOrphanedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "media.orphaned",
+    payload: {
+      mediaAssetId: "01938f00-fff2-7000-8000-000000000001" as MediaAssetId,
+    },
+    occurredAt: new Date(0),
+    aggregateId: "01938f00-fff2-7000-8000-000000000001",
+  };
+}
+
 function userDeletedEvent(): DomainEvent {
   return {
     id: EVENT_ID,
@@ -1337,6 +1353,12 @@ describe("dispatchDomainEvent — skipped regression guards", () => {
     // production event taxonomy.
     const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(container, mediaUploadedEvent());
+    expect(outcome).toEqual({ kind: "skipped" });
+  });
+
+  it("skips media.orphaned (TTL-based reclamation, not event-driven — #468 sweep emits it unattended)", async () => {
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(container, mediaOrphanedEvent());
     expect(outcome).toEqual({ kind: "skipped" });
   });
 });

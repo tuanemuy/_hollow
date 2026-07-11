@@ -212,12 +212,31 @@ no_bundle = false
 APP_URL = "${APP_URL}"
 OUTBOX_RETENTION_MS = "604800000"   # 7 days
 PROCESSED_EVENTS_RETENTION_MS = "1209600000"   # 14 days
+# Object-storage bucket name consulted by `createRequestContainer` when
+# building the purge container (Issue #783 ADR-005 / Issue #468). Required
+# for the export purge and the media orphan purge to actually delete R2
+# objects — see the `OBJECT_STORAGE` binding below.
+R2_OBJECT_BUCKET_NAME = "${R2_OBJECTS_BUCKET}"
 
 [[env.pruner.d1_databases]]
 binding = "DB"
 database_name = "${D1_NAME}"
 database_id = "${D1_ID}"
 migrations_dir = "app/core/adapters/d1/migrations"
+
+# The pruner drives `purgeExpiredExports` (Issue #783 ADR-005) and the
+# media hygiene pair `sweepAbandonedSourceIntakes` → `purgeOrphans`
+# (Issue #468), which delete R2 objects. Mirrors the `[env.consumer]`
+# binding (same bucket). The three SigV4 presign secrets
+# (`R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`) are
+# injected at deploy time via SOPS, never placed in `[vars]`. If the
+# binding or any presign secret is missing, `createRequestContainer` falls
+# back to an unavailable objectStorage whose `delete` throws
+# `StorageUnavailableError` — purge's per-row catch keeps the tick running
+# but the object is left orphaned, so production must supply all of them.
+[[env.pruner.r2_buckets]]
+binding = "OBJECT_STORAGE"
+bucket_name = "${R2_OBJECTS_BUCKET}"
 
 [env.pruner.triggers]
 crons = ["0 3 * * *"] # 03:00 UTC daily

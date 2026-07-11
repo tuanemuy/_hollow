@@ -50,9 +50,9 @@ export const workerSecretSpecs = (
     // per-worker filtering lands. See `.issue/197/adr.md` ADR-004.
     "RESEND_API_KEY",
   ] as const;
-  // Secrets required by code paths that actually dispatch ingestion /
-  // export work — i.e. the web Worker (request-driven dispatch) and
-  // the queue consumer (event-driven dispatch).
+  // LLM / crypto secrets required by code paths that actually dispatch
+  // ingestion / export work — i.e. the web Worker (request-driven
+  // dispatch) and the queue consumer (event-driven dispatch).
   //
   // - `SECRET_BOX_MASTER_KEY`: base64-encoded 32-byte AES-256 key for
   //   `WebCryptoSecretBox`. Consumer needs it to decrypt the DB-stored
@@ -68,12 +68,6 @@ export const workerSecretSpecs = (
   //   worker falls back to the DB-stored ciphertext (decrypted via
   //   `SecretBox`/`SECRET_BOX_MASTER_KEY`) when present, otherwise to
   //   `StubLLMProvider`.
-  // - `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`:
-  //   SigV4 credentials for `R2ObjectStorage.presign*`. R2's Worker
-  //   binding (`OBJECT_STORAGE`) only covers data-plane ops; presigned
-  //   URLs are minted against the S3-compatible endpoint and need a
-  //   manually-issued R2 access token. See ADR-005 (#110) — issue per
-  //   stage, never share keys across staging/production.
   //
   // `ADMIN_SETUP_TOKEN` is deliberately NOT listed here — it is a
   // single-use bootstrap secret set via `wrangler secret put` and
@@ -82,28 +76,47 @@ export const workerSecretSpecs = (
   //
   // ADR-007 (#110): the CI `wrangler secret bulk` step pushes the
   // single SOPS-decrypted file to every worker. This spec is therefore
-  // documentation-only until per-worker filtering lands; relay /
-  // pruner / dlq currently receive these secrets even though they do
-  // not consume them.
-  const dispatchExtras = [
+  // documentation-only until per-worker filtering lands; relay / dlq /
+  // pruner currently receive these secrets even though they do not
+  // consume them (the pruner consumes only the R2 trio below).
+  const llmDispatchExtras = [
     "SECRET_BOX_MASTER_KEY",
     "ADMIN_LLM_API_KEY",
+  ] as const;
+  // `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`:
+  // SigV4 credentials for `R2ObjectStorage.presign*`. R2's Worker
+  // binding (`OBJECT_STORAGE`) only covers data-plane ops; presigned
+  // URLs are minted against the S3-compatible endpoint and need a
+  // manually-issued R2 access token. See ADR-005 (#110) — issue per
+  // stage, never share keys across staging/production. Consumed by web
+  // / consumer (presign + dispatch) and by the pruner: its purge steps
+  // (`purgeExpiredExports`, `sweepAbandonedSourceIntakes` →
+  // `purgeOrphans`, Issue #783 / #468) build a `RequestContainer` whose
+  // objectStorage falls back to an unavailable stub unless the binding
+  // AND all three presign secrets are present.
+  const r2PresignExtras = [
     "R2_ACCOUNT_ID",
     "R2_ACCESS_KEY_ID",
     "R2_SECRET_ACCESS_KEY",
   ] as const;
   return [
-    { worker: names.web, secrets: [...shared, ...dispatchExtras] },
+    {
+      worker: names.web,
+      secrets: [...shared, ...llmDispatchExtras, ...r2PresignExtras],
+    },
     { worker: names.relay, secrets: shared },
-    { worker: names.consumer, secrets: [...shared, ...dispatchExtras] },
-    { worker: names.pruner, secrets: shared },
+    {
+      worker: names.consumer,
+      secrets: [...shared, ...llmDispatchExtras, ...r2PresignExtras],
+    },
+    { worker: names.pruner, secrets: [...shared, ...r2PresignExtras] },
     { worker: names.dlq, secrets: shared },
     // Indexer (Issue #145) drains `index_jobs` against D1 + SearchIndex.
     // No LLM / R2 secrets are actually consumed; only the `shared`
     // BETTER_AUTH / GOOGLE_* are listed here for parity with relay /
-    // pruner / dlq under the bulk-push constraint described above
-    // (ADR-007 #110). Once per-worker filtering lands, this list can
-    // shrink to the actually-used subset (currently empty).
+    // dlq under the bulk-push constraint described above (ADR-007
+    // #110). Once per-worker filtering lands, this list can shrink to
+    // the actually-used subset (currently empty).
     { worker: names.indexer, secrets: shared },
   ];
 };

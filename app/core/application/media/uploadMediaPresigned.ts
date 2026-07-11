@@ -1,12 +1,15 @@
 import type { UserId } from "@/core/domain/identity/valueObject";
 import { MediaAsset } from "@/core/domain/media/entity";
-import type { MediaKind } from "@/core/domain/media/valueObject";
 import type { ServiceArgs } from "../types";
-import { buildStorageKey, enforceUploadLimit } from "./uploadMedia";
+import {
+  buildStorageKey,
+  enforceUploadLimit,
+  type UploadableMediaKind,
+} from "./uploadMedia";
 
 export type UploadMediaPresignedInput = Readonly<{
   actorUserId: string;
-  kind: MediaKind;
+  kind: UploadableMediaKind;
   mimeType: string;
   byteSize: number;
 }>;
@@ -24,9 +27,13 @@ const DOWNLOAD_TTL_SEC = 15 * 60;
  * Pre-create the `MediaAsset` row in `pending` state and mint a
  * short-lived presigned upload URL the client can PUT to directly.
  *
- * The client follows up with `FinalizeUpload` once R2 ACKs the PUT;
- * if it never does, the row stays `pending` with `refCount=0` and the
- * `PurgeOrphans` worker reclaims it after the orphan-age cutoff.
+ * The client follows up with `FinalizeUpload` once R2 ACKs the PUT; if
+ * it never does, the row stays `pending` with `refCount=0`. Such rows
+ * are currently NOT reclaimed automatically: the purge pipeline only
+ * targets `orphan` / `deleting` rows, and the abandoned-intake sweep is
+ * deliberately limited to `kind='source'` because an image / video
+ * pending may legitimately be awaiting attach from an open editor draft
+ * (#468 ADR-004).
  */
 export async function uploadMediaPresigned({
   container,

@@ -91,6 +91,153 @@ describe("D1MediaAssetRepository.findByIds — D1 bind limit regression (Issue #
   });
 });
 
+describe("D1MediaAssetRepository.findAbandonedSourceIntakes (integration, #468)", () => {
+  const CUTOFF = new Date("2026-03-02T00:00:00.000Z");
+  const OLD = new Date(CUTOFF.getTime() - 60_000).toISOString();
+  const RECENT = new Date(CUTOFF.getTime() + 60_000).toISOString();
+
+  async function insertMedia(
+    container: TestContainer,
+    ownerId: UserId,
+    opts: {
+      kind: string;
+      status: string;
+      refCount?: number;
+      updatedAt: string;
+    },
+  ): Promise<string> {
+    const id = nextId(0x07);
+    await container.db.insert(schema.mediaAssets).values({
+      id,
+      ownerId,
+      kind: opts.kind,
+      mimeType: opts.kind === "source" ? "application/pdf" : "image/png",
+      byteSize: 1,
+      backend: "r2",
+      storageKey: `${ownerId}/${opts.kind}/${id}`,
+      originalFileName: null,
+      width: null,
+      height: null,
+      durationMs: null,
+      refCount: opts.refCount ?? 0,
+      status: opts.status,
+      createdAt: TZ,
+      updatedAt: opts.updatedAt,
+    });
+    return id;
+  }
+
+  it("returns only pending/source rows older than the cutoff, oldest first", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+
+    const older = await insertMedia(container, owner, {
+      kind: "source",
+      status: "pending",
+      updatedAt: new Date(CUTOFF.getTime() - 120_000).toISOString(),
+    });
+    const old = await insertMedia(container, owner, {
+      kind: "source",
+      status: "pending",
+      updatedAt: OLD,
+    });
+    // Excluded: fresh pending/source (grace window not lapsed).
+    await insertMedia(container, owner, {
+      kind: "source",
+      status: "pending",
+      updatedAt: RECENT,
+    });
+    // Excluded: pending of another kind, however old (#468 ADR-004).
+    await insertMedia(container, owner, {
+      kind: "image",
+      status: "pending",
+      updatedAt: OLD,
+    });
+    // Excluded: non-pending sources.
+    await insertMedia(container, owner, {
+      kind: "source",
+      status: "attached",
+      refCount: 1,
+      updatedAt: OLD,
+    });
+    await insertMedia(container, owner, {
+      kind: "source",
+      status: "orphan",
+      updatedAt: OLD,
+    });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ mediaAssetRepository }) =>
+        mediaAssetRepository.findAbandonedSourceIntakes(CUTOFF, 10),
+    );
+    expect(rows.map((r) => r.id)).toEqual([older, old]);
+    for (const row of rows) {
+      expect(row.status).toBe("pending");
+      expect(row.kind).toBe("source");
+    }
+  });
+
+  it("respects the limit", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    for (let i = 0; i < 3; i += 1) {
+      await insertMedia(container, owner, {
+        kind: "source",
+        status: "pending",
+        updatedAt: OLD,
+      });
+    }
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ mediaAssetRepository }) =>
+        mediaAssetRepository.findAbandonedSourceIntakes(CUTOFF, 2),
+    );
+    expect(rows).toHaveLength(2);
+  });
+
+  // Port contract: rows sharing an `updatedAt` (e.g. a failed bulk
+  // commit stamped in the same second) are ordered by `id` ascending so
+  // limit-crossing sweeps are deterministic across implementations —
+  // the in-memory fakes rely on matching this ordering.
+  it("breaks updatedAt ties by id ascending across the limit boundary", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      ids.push(
+        await insertMedia(container, owner, {
+          kind: "source",
+          status: "pending",
+          updatedAt: OLD,
+        }),
+      );
+    }
+    const sorted = [...ids].sort();
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ mediaAssetRepository }) =>
+        mediaAssetRepository.findAbandonedSourceIntakes(CUTOFF, 2),
+    );
+    expect(rows.map((r) => r.id)).toEqual(sorted.slice(0, 2));
+  });
+
+  it("excludes rows whose updatedAt equals the cutoff (strict <)", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    await insertMedia(container, owner, {
+      kind: "source",
+      status: "pending",
+      updatedAt: CUTOFF.toISOString(),
+    });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ mediaAssetRepository }) =>
+        mediaAssetRepository.findAbandonedSourceIntakes(CUTOFF, 10),
+    );
+    expect(rows).toHaveLength(0);
+  });
+});
+
 describe("D1MediaAssetRepository.aggregateByOwner (integration, #573)", () => {
   async function insertMedia(
     container: TestContainer,

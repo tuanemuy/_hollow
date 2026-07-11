@@ -33,6 +33,9 @@ const mocks = vi.hoisted(() => ({
   purgeExpiredExports: vi.fn<() => Promise<{ expired: number }>>(),
   pruneExportJobs: vi.fn<() => Promise<{ deleted: number }>>(),
   pruneTagMergeJobs: vi.fn<() => Promise<{ deleted: number }>>(),
+  sweepAbandonedSourceIntakes:
+    vi.fn<() => Promise<{ swept: number; failed: number }>>(),
+  purgeOrphans: vi.fn<() => Promise<{ purged: number; failed: number }>>(),
 }));
 
 vi.mock("@/core/application/di/serverCloudflare", async (importOriginal) => {
@@ -86,6 +89,23 @@ vi.mock(
     pruneTagMergeJobs: mocks.pruneTagMergeJobs,
   }),
 );
+
+vi.mock(
+  "@/core/application/media/sweepAbandonedSourceIntakes",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/core/application/media/sweepAbandonedSourceIntakes")
+    >()),
+    sweepAbandonedSourceIntakes: mocks.sweepAbandonedSourceIntakes,
+  }),
+);
+
+vi.mock("@/core/application/media/purgeOrphans", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/core/application/media/purgeOrphans")
+  >()),
+  purgeOrphans: mocks.purgeOrphans,
+}));
 
 // Partial mocks: `env.ts` imports the `DEFAULT_*` retention constants
 // from these modules, so the real exports must survive — only the prune
@@ -151,6 +171,14 @@ beforeEach(() => {
     mocks.calls.push("tag-merge-jobs");
     return { deleted: 0 };
   });
+  mocks.sweepAbandonedSourceIntakes.mockReset().mockImplementation(async () => {
+    mocks.calls.push("sweep-source-intakes");
+    return { swept: 0, failed: 0 };
+  });
+  mocks.purgeOrphans.mockReset().mockImplementation(async () => {
+    mocks.calls.push("purge-orphans");
+    return { purged: 0, failed: 0 };
+  });
 });
 
 afterEach(() => {
@@ -203,6 +231,8 @@ describe("runPruneTick", () => {
     expect(mocks.purgeExpiredExports).not.toHaveBeenCalled();
     expect(mocks.pruneExportJobs).not.toHaveBeenCalled();
     expect(mocks.pruneTagMergeJobs).not.toHaveBeenCalled();
+    expect(mocks.sweepAbandonedSourceIntakes).not.toHaveBeenCalled();
+    expect(mocks.purgeOrphans).not.toHaveBeenCalled();
   });
 
   it("runs purge before the export-jobs prune so completed → expired is advanced first (Issue #783 ADR-005)", async () => {
@@ -256,14 +286,54 @@ describe("runPruneTick", () => {
     expect(errors[0]?.message).toMatch(/export-jobs prune failed/);
   });
 
-  it("isolates a tag-merge prune failure without unwinding the tick", async () => {
+  it("isolates a tag-merge prune failure: the media hygiene pair still runs", async () => {
     mocks.pruneTagMergeJobs.mockRejectedValueOnce(new Error("d1 timeout"));
 
     const result = await runPruneTick(ENV);
 
     expect(result).toEqual({ outboxDeleted: 3, processedEventsDeleted: 5 });
+    expect(mocks.sweepAbandonedSourceIntakes).toHaveBeenCalledTimes(1);
+    expect(mocks.purgeOrphans).toHaveBeenCalledTimes(1);
     const errors = mocks.logger.byLevel("error");
     expect(errors).toHaveLength(1);
     expect(errors[0]?.message).toMatch(/tag-merge-jobs prune failed/);
+  });
+
+  it("runs the media hygiene pair in order — sweep before purgeOrphans (Issue #468)", async () => {
+    await runPruneTick(ENV);
+
+    expect(mocks.sweepAbandonedSourceIntakes).toHaveBeenCalledTimes(1);
+    expect(mocks.purgeOrphans).toHaveBeenCalledTimes(1);
+    const sweepIdx = mocks.calls.indexOf("sweep-source-intakes");
+    const purgeIdx = mocks.calls.indexOf("purge-orphans");
+    expect(sweepIdx).toBeGreaterThanOrEqual(0);
+    expect(sweepIdx).toBeLessThan(purgeIdx);
+    expect(mocks.logger.byLevel("error")).toHaveLength(0);
+  });
+
+  it("isolates a sweep failure: purgeOrphans still runs and the tick returns its counts", async () => {
+    mocks.sweepAbandonedSourceIntakes.mockRejectedValueOnce(
+      new Error("d1 timeout"),
+    );
+
+    const result = await runPruneTick(ENV);
+
+    expect(result).toEqual({ outboxDeleted: 3, processedEventsDeleted: 5 });
+    expect(mocks.purgeOrphans).toHaveBeenCalledTimes(1);
+    const errors = mocks.logger.byLevel("error");
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toMatch(/abandoned-source-intake sweep failed/);
+  });
+
+  it("isolates a purgeOrphans failure without unwinding the tick", async () => {
+    mocks.purgeOrphans.mockRejectedValueOnce(new Error("r2 down"));
+
+    const result = await runPruneTick(ENV);
+
+    expect(result).toEqual({ outboxDeleted: 3, processedEventsDeleted: 5 });
+    expect(mocks.sweepAbandonedSourceIntakes).toHaveBeenCalledTimes(1);
+    const errors = mocks.logger.byLevel("error");
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toMatch(/media orphan purge failed/);
   });
 });
