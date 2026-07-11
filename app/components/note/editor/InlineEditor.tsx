@@ -4,9 +4,11 @@ import { useEffect, useRef } from "react";
 
 /**
  * Inline editor (spec C2). Renders the saved HTML as-is
- * and makes its **text-bearing block elements** (`<p>` / `<h1-6>` /
+ * and makes its **allow-listed block elements** (`<p>` / `<h1-6>` /
  * `<li>` / `<td>` / `<th>` / `<blockquote>` / `<figcaption>` /
- * `<caption>` / `<dt>` / `<dd>`) contentEditable so users can edit
+ * `<caption>` / `<dt>` / `<dd>` / `<pre>` — see invariant 6)
+ * contentEditable — excluding pure
+ * containers of editable blocks (see invariant 1) — so users can edit
  * decorated text in place without losing structure (spec C2-2).
  *
  * Mirrors `HtmlEditor` / `WysiwygEditor`'s `{ value, onChange,
@@ -21,9 +23,14 @@ import { useEffect, useRef } from "react";
  * 1. **Allow-list block contentEditable.** Only the allow-listed block
  *    tags get `contentEditable=true`. Inline children (`<strong>` /
  *    `<em>` / `<a>` / `<code>` …) inherit editability from the parent
- *    so the user can edit decorated text in place. `<pre>` is on the
- *    allow-list: it is decorated even when it has no direct
- *    text child (the standard `<pre><code>…</code></pre>` shape), so the
+ *    so the user can edit decorated text in place. Among the
+ *    allow-listed tags, only a pure container of editable blocks (a
+ *    block with editable descendants and no direct text child, e.g. the
+ *    `<li>` in `<li><p>…</p></li>`) is skipped — its descendants get
+ *    decorated individually. Blocks without editable descendants are
+ *    decorated even with no direct text child (`<p><img></p>` from a
+ *    media insert, an empty `<p>` — Issue #287). `<pre>` is always
+ *    decorated (the standard `<pre><code>…</code></pre>` shape), so the
  *    nested `<code>` text becomes editable via contentEditable
  *    inheritance. Tags outside the allow-list stay read-only.
  *
@@ -124,10 +131,17 @@ const EDITABLE_TAGS: ReadonlySet<string> = new Set([
   "pre",
 ]);
 
+const EDITABLE_TAGS_SELECTOR = Array.from(EDITABLE_TAGS).join(",");
+
 const ONCHANGE_DEBOUNCE_MS = 50;
 
 function isEditableTag(el: Element): boolean {
   return EDITABLE_TAGS.has(el.tagName.toLowerCase());
+}
+
+/** True if any of `el`'s descendants is an allow-listed block element. */
+function containsEditableBlock(el: Element): boolean {
+  return el.querySelector(EDITABLE_TAGS_SELECTOR) !== null;
 }
 
 /** True if any of `el`'s direct children is a non-blank text node. */
@@ -264,7 +278,6 @@ function restoreCaretWithin(root: Element, offset: number): void {
     remaining -= len;
     node = walker.nextNode();
   }
-  // Fallback: caret at the end of the target.
   range.selectNodeContents(root);
   range.collapse(false);
   selection.removeAllRanges();
@@ -279,19 +292,28 @@ function applyEditable(host: HTMLElement, enabled: boolean): void {
     for (const child of el.children) stack.push(child);
     if (el === host) continue;
     if (!isEditableTag(el)) continue;
-    // Decorate the block when it has at least one direct text child;
-    // a pure container of editable blocks (e.g. `<ul>` → `<li>`) needs
-    // no decoration on itself because its descendants will be decorated
-    // individually. The mixed case (text + nested editable block) is
-    // covered by HTML5's contentEditable semantics — both can carry
-    // `true` without conflict, and the outer text becomes editable.
+    // Skip only the pure containers of editable blocks (e.g. the
+    // `<li>` in `<li><p>…</p></li>`): their descendants get decorated
+    // individually, so decorating the container itself would be
+    // redundant. Every other allow-listed block is decorated — including
+    // blocks with neither a direct text child nor an editable descendant
+    // (`<p><img></p>` from a media insert, an empty `<p>` — Issue #287).
+    // The mixed case (text + nested editable block) is covered by
+    // HTML5's contentEditable semantics — both can carry `true` without
+    // conflict, and the outer text becomes editable.
     //
-    // `<pre>` is the lone exception: the standard
-    // `<pre><code>…</code></pre>` shape has no direct text child, so we
-    // bypass the gate and always decorate `<pre>` — its nested `<code>`
-    // text becomes editable via contentEditable inheritance.
+    // A container mixing media and editable blocks
+    // (`<li><img><p>…</p></li>`) is also skipped, leaving the
+    // media-adjacent area read-only — a known residual gap, out of
+    // scope for #287 (see `.issue/287/plan.md`).
+    //
+    // `<pre>` bypasses the gate explicitly: it is an opaque region with
+    // its own invariants (highlighting / serialize-time text
+    // flattening), so "always decorate `<pre>`" must not depend on the
+    // general rule's incidental outcome.
     const isPre = el.tagName.toLowerCase() === "pre";
-    if (!isPre && !hasDirectTextChild(el)) continue;
+    if (!isPre && !hasDirectTextChild(el) && containsEditableBlock(el))
+      continue;
     if (enabled) {
       el.setAttribute("contenteditable", "true");
     } else {
@@ -635,7 +657,6 @@ export function InlineEditor({
       applyEditable(host, !disabledRef.current);
       lastEmittedHtmlRef.current = serializeHostContent(host);
       restartObserver();
-      // Decorate all code blocks once the DOM is in place.
       highlightAll();
     };
     rebuildRef.current = rebuild;
