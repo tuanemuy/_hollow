@@ -18,6 +18,7 @@ Multi-Worker, edge-distributed runtime. The main app runs in the `app` Worker; o
 - [Retry budget](#retry-budget)
 - [D1 transactional model](#d1-transactional-model)
 - [Observability: section render failures](#observability-section-render-failures)
+- [Auth endpoint edge protection](#auth-endpoint-edge-protection)
 
 ## Quick start
 
@@ -360,3 +361,20 @@ The actual error that broke the section is logged separately: the framework's de
 4. **Do not use `cf-ray` as the join key.** The client report arrives as a *separate* HTTP POST from the request that streamed the failing RSC, so their `cf-ray` values differ. `cf-ray` is useful only for grouping log lines within a single request, not for linking the report to its origin error.
 
 There is intentionally no automatic correlation (no request-ID / distributed-tracing infrastructure) and no server-side rate limit on reports. Per-page volume from a legitimate client is bounded by the number of boundaries on the page, but the endpoint is an unauthenticated public POST, so an attacker hitting it directly is **not** rate-bounded; request-frequency control is deferred to the log/edge layer (Cloudflare WAF / rate-limit rules, Workers Logs sampling) rather than the app — see `.issue/647/adr.md` ADR-006. A full APM/correlation layer is out of scope (see `.issue/647/adr.md` ADR-002 / ADR-003).
+
+## Auth endpoint edge protection
+
+The login server-function POST path (`loginFn`, `createServerFn({ method: "POST" })`) has **no application-layer rate limit or lockout**, and by design it never gets one: request-frequency control is deferred to the Cloudflare edge, consistent with the §Observability policy above (`.issue/647/adr.md` ADR-006) and decided for the auth path in `.issue/457/adr.md` (ADR-001 / ADR-002). The edge runs **before** the Worker boots, so it sheds volumetric floods without spending scrypt CPU (`N=2^16`, ~50–100 ms per verify) or a D1 write, which an in-app counter could not.
+
+Configure a **WAF Rate Limiting Rule** per zone:
+
+- **Match:** the login server-function POST path — method `POST` on the login endpoint. Confirm the concrete path against the deployed server-function route rather than hardcoding a guess.
+- **Counting key:** client IP (`CF-Connecting-IP`). This is the only client IP the platform can trust — the app deliberately does **not** trust `X-Forwarded-For`, and `loginFn` does not even read the IP (`ipAddress: null`). Keying on IP touches no account identity, so it adds **zero** account-enumeration surface (the login flow already collapses unknown-email / wrong-password / bad-shape into a single `invalid_credentials` 401).
+- **Threshold:** start around **10 requests / 60 s / IP** and tune from real traffic. This is a starting point, not a tuned value.
+- **Action:** `block` or `managed challenge`. Pair it with the always-on DDoS protection, and escalate to **Turnstile** only when a challenge is actually warranted.
+
+Notes:
+
+- **Plan-dependent.** Rate Limiting Rules availability and quota depend on the Cloudflare plan. If the contracted plan cannot run them, the fallback is an application-layer **per-IP** limiter (design recorded, **not implemented** — see `.issue/457/investigation.md` §6); keep the key on IP, never per-account (a per-account lockout enables self-DoS and can leak account existence — ADR-002).
+- **Not repo-managed.** WAF rules are operational resources outside this repository (not in wrangler configs or Pulumi). Apply the rule to **both** the staging and production zones — nothing in a deploy will create or sync it for you.
+- **Distributed brute force is out of scope for per-IP.** A botnet spreading a single-account brute force across many IPs evades any per-IP rule; that is the DDoS / bot-management / Turnstile domain, and the scrypt cost per attempt (unknown emails skip scrypt entirely) is the app-side backstop. An app-single lockout cannot solve it either without incurring the self-DoS above.
