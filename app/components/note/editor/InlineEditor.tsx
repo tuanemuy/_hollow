@@ -4,9 +4,10 @@ import { useEffect, useRef } from "react";
 
 /**
  * Inline editor (spec C2). Renders the saved HTML as-is
- * and makes its **text-bearing block elements** (`<p>` / `<h1-6>` /
+ * and makes its **allow-listed block elements** (`<p>` / `<h1-6>` /
  * `<li>` / `<td>` / `<th>` / `<blockquote>` / `<figcaption>` /
- * `<caption>` / `<dt>` / `<dd>`) contentEditable so users can edit
+ * `<caption>` / `<dt>` / `<dd>`) contentEditable — excluding pure
+ * containers of editable blocks (see invariant 1) — so users can edit
  * decorated text in place without losing structure (spec C2-2).
  *
  * Mirrors `HtmlEditor` / `WysiwygEditor`'s `{ value, onChange,

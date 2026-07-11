@@ -1032,6 +1032,53 @@ describe("InlineEditor structural preservation", () => {
     );
   });
 
+  it("decorates blocks holding media behind an inline wrapper (Issue #287, ADR-001 option 2)", async () => {
+    // The case that made ADR-001 reject a direct-media-child check:
+    // the <img> sits behind an inline <a>, so only the general
+    // pure-container rule (no editable *block* descendant) decorates
+    // the wrapper. <td><img></td> pins the same rule on a table cell.
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value='<p><a href="/x"><img src="/media/abc" alt=""></a></p><table><tbody><tr><td><img src="/media/def" alt=""></td></tr></tbody></table>'
+          onChange={vi.fn()}
+        />,
+      );
+    });
+    const host = findHost();
+    expect(host.querySelector("p")?.getAttribute("contenteditable")).toBe(
+      "true",
+    );
+    expect(host.querySelector("td")?.getAttribute("contenteditable")).toBe(
+      "true",
+    );
+    expect(host.querySelector("a")?.getAttribute("contenteditable")).toBeNull();
+    for (const img of host.querySelectorAll("img")) {
+      expect(img.getAttribute("contenteditable")).toBeNull();
+    }
+  });
+
+  it("skips a pure container whose editable block sits deeper than one level (Issue #287)", async () => {
+    // containsEditableBlock searches descendants at any depth: the
+    // outer <blockquote> only holds the <li> via an intermediate
+    // <ul>, yet it must still be skipped as a pure container.
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<blockquote><ul><li>x</li></ul></blockquote>"
+          onChange={vi.fn()}
+        />,
+      );
+    });
+    const host = findHost();
+    expect(
+      host.querySelector("blockquote")?.getAttribute("contenteditable"),
+    ).toBeNull();
+    expect(host.querySelector("li")?.getAttribute("contenteditable")).toBe(
+      "true",
+    );
+  });
+
   it("rolls back when the <img> is force-removed from its wrapper (Issue #287 structure preservation)", async () => {
     // Element removal is structural drift even inside a decorated
     // block; deleting the image requires switching to html mode.
