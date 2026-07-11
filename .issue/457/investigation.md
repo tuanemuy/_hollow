@@ -46,7 +46,7 @@ return { userId, needsRehash: !isScryptEncoded(row.password) }
 
 ### エッジ用ステートの土台が無い
 
-- `wrangler.toml` / `wrangler.staging.toml` のバインディングは **D1 / R2 / Queues のみ**。**KV / Durable Object は存在しない**。application 層でステートを持つなら実質 D1 一択。
+- `wrangler.toml` / `wrangler.staging.toml` のバインディングに **KV / Durable Object は存在しない**（D1 / R2 / Queues / ASSETS / Service Binding(`RELAY`) / Workers AI(`AI`) はあるが、レート制御のステート保持に使える永続カウンタ基盤は無い）。application 層でステートを持つなら実質 D1 一択。
 - application 層で 429 を返す `tooManyRequests` エラー kind は存在しない（下記 2 章）。
 
 ## 1. 脅威モデル

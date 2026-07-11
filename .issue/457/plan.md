@@ -47,7 +47,7 @@
 - `app/core/application/errors/index.ts` — `AuthenticationError extends UnauthorizedError`。kind は `unauthorized`。`invalid_credentials` / `unverified` / `account_unavailable` / `setup_token_disabled` / `invalid_setup_token` の 5 種。**`tooManyRequests` / `rateLimited` の kind は存在しない**。
 - `app/core/presentation/errorResponse.ts` — `HTTP_STATUS_BY_KIND`：`unauthorized → 401`。**429 に対応する kind がない**。app 層 429 を返すには SerializedError union 全体（全レイヤー）に新 kind を追加する必要がある。
 - `docs/runtime_cloudflare.md` — Reference runtime が Cloudflare Workers + D1 + Queues であることの一次情報源。§Observability に「未認証 POST エンドポイントの頻度制御はエッジ層（Cloudflare WAF / rate-limit rules）に委譲する」既存方針（`.issue/647/adr.md` ADR-006）が明記済み。
-- `wrangler.toml` / `wrangler.<stage>.toml` — KV / Durable Object バインディングは**存在しない**（D1 と R2 と Queues のみ）。app 層のステート保持は実質 D1 一択。
+- `wrangler.toml` / `wrangler.<stage>.toml` — KV / Durable Object バインディングは**存在しない**（D1 / R2 / Queues / ASSETS / Service Binding(RELAY) / Workers AI はあるが、レート制御用の永続カウンタ基盤は無い）。app 層のステート保持は実質 D1 一択。
 
 ### あるべきアーキテクチャ
 
