@@ -106,7 +106,7 @@ return { userId, needsRehash: !isScryptEncoded(row.password) }
 
 ## 7. フォローアップ候補（本 Issue スコープ外）
 
-- **タイミング側チャネル（未存在 email の scrypt スキップ）:** 0 章のとおり、`verifyPassword` は未存在 / 削除済み / パスワード無しの email に対して scrypt を走らせず即 `null` を返す。応答時間の差から「email が存在するか」を推定できる余地が残る（コード面の `invalid_credentials` 集約では塞げない別種の列挙耐性論点）。レート制御では塞げないため本 Issue のスコープ外。対策を検討するなら別 Issue で扱う（例：未存在時にもダミー scrypt を走らせて応答時間を平準化する等、コストとのトレードオフを含めて評価）。
+- **タイミング側チャネル（未存在 email の scrypt スキップ）:** 0 章のとおり、`verifyPassword` は未存在 / 削除済み / パスワード無しの email に対して scrypt を走らせず即 `null` を返す。応答時間の差から「email が存在するか」を推定できる余地が残る（コード面の `invalid_credentials` 集約では塞げない別種の列挙耐性論点）。レート制御では塞げないため本 Issue のスコープ外。**別 Issue #837 として起票済み**（例：未存在時にもダミー scrypt を走らせて応答時間を平準化する等、コストとのトレードオフを含めて評価）。
 
 ## 8. 結論サマリ
 
