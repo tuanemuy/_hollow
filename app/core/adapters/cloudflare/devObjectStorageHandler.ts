@@ -35,8 +35,11 @@ export function resolveDevObjectStorageGate(params: {
  * here same-origin (no CORS preflight) and read/write the same miniflare
  * `OBJECT_STORAGE` binding that `finalizeUpload` stats — eliminating the
  * remote-R2 / local-binding store mismatch. The route is wired by the
- * entry point only when `R2_DEV_OBJECT_PROXY === "true"` (local
- * `wrangler.toml [vars]` only; never set on staging / production).
+ * dev entry (`app/server.cloudflare.dev.ts`) only when
+ * `R2_DEV_OBJECT_PROXY === "true"` (local `wrangler.toml [vars]` only;
+ * never set on staging / production). The prod entry
+ * (`app/server.cloudflare.ts`) does not import this module, so it cannot
+ * reach a production bundle.
  *
  * Presigned-URL semantics are preserved: every request must carry a
  * valid SigV4 query signature minted with the same credentials

@@ -21,12 +21,12 @@ import {
  * dlq Workers and Cloudflare Queues are not running, so newly-persisted
  * outbox rows would otherwise sit idle until manual intervention.
  *
- * Wired exclusively from `app/server.cloudflare.ts` behind
- * {@link resolveInlineRelayGate} (Vite dev OR the local-only
- * `DEV_INLINE_RELAY` var under `pnpm start`); the entry guards the call
- * with `import.meta.env?.MODE !== "production"`, which `vite build`
- * inlines to `false` so this adapter cannot ship into staging or
- * production bundles.
+ * Wired exclusively from the dev entry (`app/server.cloudflare.dev.ts`)
+ * behind {@link resolveInlineRelayGate} (Vite dev OR the local-only
+ * `DEV_INLINE_RELAY` var under `pnpm start`). The prod entry
+ * (`app/server.cloudflare.ts`) never imports this module, so it has no
+ * import path into staging / production bundles — structurally, not by
+ * dead-code elimination.
  *
  * Contract behaviour:
  * - `kick()` schedules the drain via `waitUntil` and returns
@@ -59,10 +59,10 @@ import {
  * - `flag` — the `DEV_INLINE_RELAY` var. LOCAL `wrangler.toml [vars]`
  *   only; never add it to the staging / production toml templates.
  *
- * Disabling the path in production builds is NOT this function's
- * responsibility: that lives in the entry point's constant-folded DCE
- * gate (`app/server.cloudflare.ts`), verified by the post-build grep
- * in docs/runtime_cloudflare.md.
+ * Disabling the path in production is NOT this function's
+ * responsibility: the prod entry (`app/server.cloudflare.ts`) does not
+ * import this module, so it is structurally unreachable in production
+ * regardless of these flags.
  */
 export function resolveInlineRelayGate(input: {
   viteDev: boolean;
