@@ -161,7 +161,6 @@ describe("InlineEditor structural preservation", () => {
     const host = findHost();
     const p = host.querySelector("p");
     expect(p).not.toBeNull();
-    // Place caret inside the <p>.
     const sel = document.getSelection();
     const range = document.createRange();
     range.selectNodeContents(requireNode(p));
@@ -451,7 +450,6 @@ describe("InlineEditor structural preservation", () => {
     await flushMutations();
     expect(event.defaultPrevented).toBe(true);
     expect(host.querySelector("br")).toBeNull();
-    // Still exactly one <pre> and one <code>; no new elements appeared.
     expect(host.querySelectorAll("pre")).toHaveLength(1);
     expect(host.querySelectorAll("code")).toHaveLength(1);
     expect(host.querySelector("code")?.textContent).toBe("a\nb");
@@ -485,7 +483,6 @@ describe("InlineEditor structural preservation", () => {
     await flushMutations();
     expect(event.defaultPrevented).toBe(true);
     expect(host.querySelector("br")).toBeNull();
-    // Still exactly one <pre>; no <br> or new elements appeared.
     expect(host.querySelectorAll("pre")).toHaveLength(1);
     expect(host.querySelector("pre")?.textContent).toBe("a\nb");
   });
@@ -513,7 +510,6 @@ describe("InlineEditor structural preservation", () => {
     expect(
       host.querySelector("pre")?.getAttribute("contenteditable"),
     ).toBeNull();
-    // disabled = false again: editability is re-applied to <pre>.
     await act(async () => {
       root.render(
         <InlineEditor
@@ -791,7 +787,6 @@ describe("InlineEditor structural preservation", () => {
     });
     const host = findHost();
     const code = host.querySelector("code");
-    // IME composition in flight.
     await act(async () => {
       host.dispatchEvent(new Event("compositionstart", { bubbles: true }));
     });
@@ -869,7 +864,6 @@ describe("InlineEditor structural preservation", () => {
     const host = findHost();
     const p = host.querySelector("p");
     expect(p).not.toBeNull();
-    // Start composition.
     await act(async () => {
       host.dispatchEvent(
         new CompositionEvent("compositionstart", { bubbles: true }),

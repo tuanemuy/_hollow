@@ -278,7 +278,6 @@ function restoreCaretWithin(root: Element, offset: number): void {
     remaining -= len;
     node = walker.nextNode();
   }
-  // Fallback: caret at the end of the target.
   range.selectNodeContents(root);
   range.collapse(false);
   selection.removeAllRanges();
@@ -658,7 +657,6 @@ export function InlineEditor({
       applyEditable(host, !disabledRef.current);
       lastEmittedHtmlRef.current = serializeHostContent(host);
       restartObserver();
-      // Decorate all code blocks once the DOM is in place.
       highlightAll();
     };
     rebuildRef.current = rebuild;
