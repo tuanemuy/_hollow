@@ -4,6 +4,7 @@ import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InlineEditor } from "@/components/note/editor/InlineEditor";
+import { insertMediaIntoHtml } from "@/components/note/editor/mediaInsert";
 
 // shiki is client-only and heavy; the inline editor loads it via a
 // dynamic import for `<pre>` highlighting. Mock it so these
@@ -19,7 +20,11 @@ vi.mock("@/components/note/content/highlighter", () => ({
 /**
  * Pins the structural-preservation contract of the inline editor.
  *
- * - Editable allow-list applied only to text-bearing block elements.
+ * - Editable allow-list applied to block elements, skipping only the
+ *   pure containers of editable blocks (e.g. the `<li>` in
+ *   `<li><p>…</p></li>`); blocks without editable descendants are
+ *   decorated even with no direct text child (`<p><img></p>`, empty
+ *   `<p>` — Issue #287).
  * - Inline decorations (`<strong>` / `<em>` …) preserved.
  * - `Enter` / `Tab` keydown is prevented at the host so the structure
  *   cannot grow new blocks via the browser default behaviour.
@@ -949,6 +954,102 @@ describe("InlineEditor structural preservation", () => {
     await flushMutations();
     // Rollback restores the snapshot which had no `data-foo`.
     expect(host.querySelector("p")?.getAttribute("data-foo")).toBeNull();
+  });
+
+  it("decorates the <p><img></p> media wrapper, not the <img> itself (Issue #287)", async () => {
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value='<p><img src="/media/abc" alt=""></p>'
+          onChange={vi.fn()}
+        />,
+      );
+    });
+    const host = findHost();
+    const p = host.querySelector("p");
+    const img = host.querySelector("img");
+    expect(p?.getAttribute("contenteditable")).toBe("true");
+    expect(img?.getAttribute("contenteditable")).toBeNull();
+  });
+
+  it("decorates the media paragraph appended by insertMediaIntoHtml after an external value resync (Issue #287)", async () => {
+    // The inline-mode media-insert path: upload → insertMediaIntoHtml
+    // string append → dispatch setContent → new `value` prop → resync
+    // rebuild. The appended <p><img></p> must come out editable.
+    const onChange = vi.fn();
+    await act(async () => {
+      root.render(<InlineEditor value="<p>hi</p>" onChange={onChange} />);
+    });
+    const next = insertMediaIntoHtml("<p>hi</p>", { id: "abc" });
+    await act(async () => {
+      root.render(<InlineEditor value={next} onChange={onChange} />);
+    });
+    const host = findHost();
+    const paragraphs = host.querySelectorAll("p");
+    expect(paragraphs).toHaveLength(2);
+    const mediaP = paragraphs[1];
+    expect(mediaP.querySelector("img")?.getAttribute("src")).toBe("/media/abc");
+    expect(mediaP.getAttribute("contenteditable")).toBe("true");
+  });
+
+  it("emits the <img> reference plus typed text without rollback or contenteditable leak (Issue #287)", async () => {
+    // DOM-level equivalent of placing the caret next to the image and
+    // typing: a TEXT_NODE childList addition on a contentEditable
+    // target, which the classifier must allow.
+    const onChange = vi.fn();
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value='<p><img src="/media/abc" alt=""></p>'
+          onChange={onChange}
+        />,
+      );
+    });
+    const host = findHost();
+    const p = requireNode(host.querySelector("p"));
+    await act(async () => {
+      p.appendChild(document.createTextNode("after"));
+    });
+    await flushMutations();
+    // Not rolled back: the typed text survives beside the image.
+    expect(host.querySelector("p")?.textContent).toBe("after");
+    expect(host.querySelector("img")).not.toBeNull();
+    expect(onChange).toHaveBeenCalled();
+    const emitted = onChange.mock.calls[onChange.mock.calls.length - 1][0];
+    expect(emitted).toContain('src="/media/abc"');
+    expect(emitted).toContain("after");
+    // Editor-only attribute must not leak into the emitted HTML.
+    expect(emitted).not.toContain("contenteditable");
+  });
+
+  it("decorates an empty <p></p> (Issue #287 generalization)", async () => {
+    await act(async () => {
+      root.render(<InlineEditor value="<p></p>" onChange={vi.fn()} />);
+    });
+    const host = findHost();
+    expect(host.querySelector("p")?.getAttribute("contenteditable")).toBe(
+      "true",
+    );
+  });
+
+  it("rolls back when the <img> is force-removed from its wrapper (Issue #287 structure preservation)", async () => {
+    // Element removal is structural drift even inside a decorated
+    // block; deleting the image requires switching to html mode.
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value='<p><img src="/media/abc" alt=""></p>'
+          onChange={vi.fn()}
+        />,
+      );
+    });
+    const host = findHost();
+    const img = requireNode(host.querySelector("img"));
+    await act(async () => {
+      img.remove();
+    });
+    await flushMutations();
+    expect(host.querySelector("img")?.getAttribute("src")).toBe("/media/abc");
   });
 
   it("emits onChange via debounced characterData mutation on leaf text", async () => {
