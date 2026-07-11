@@ -93,12 +93,19 @@ function abandonedSourceIntakeCutoff(now: Date, graceSec: number): Date {
  * by a rolled-back or failed commit. `listAbandonedSourceIntakes`
  * expresses the same rule as a bulk query; the sweep worker's per-row
  * fresh guard re-applies it here.
+ *
+ * Deliberately `boolean`, not `asset is PendingMedia`: the rule hinges
+ * on value conditions (kind, elapsed time) beyond the `status`
+ * discriminant, so a type predicate would unsoundly narrow the false
+ * branch (an in-grace pending source is not `AttachedMedia | ...`).
+ * Callers needing `PendingMedia` should combine with
+ * `MediaAsset.isPending`.
  */
 function isAbandonedSourceIntake(
   asset: MediaAsset,
   now: Date,
   graceSec: number,
-): asset is PendingMedia {
+): boolean {
   return (
     MediaAsset.isPending(asset) &&
     asset.kind === "source" &&

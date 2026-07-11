@@ -79,7 +79,7 @@ export async function sweepAbandonedSourceIntakes(
       const orphaned = await container.unitOfWorkProvider.run(
         async ({ mediaAssetRepository, collectEvents }) => {
           const fresh = await mediaAssetRepository.findById(candidate.id);
-          if (fresh === null) return false;
+          if (fresh === null || !MediaAsset.isPending(fresh)) return false;
           // A re-stamped `updatedAt` defers reclaim (see `PendingMedia`),
           // so the abandonment rule must hold for the fresh read too —
           // not just at candidate listing.

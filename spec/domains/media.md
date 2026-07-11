@@ -69,7 +69,7 @@ R2 に保存されるメディアアセット（画像・動画・アバター�
 - メソッド:
   - `reconcileRefs(noteBeforeIds: MediaAssetId[], noteAfterIds: MediaAssetId[], now: Instant, repo: MediaAssetRepository): Promise<void>` — 差分計算して inc/dec
   - `listPurgeCandidates(now: Instant, ageSec: number, repo: MediaAssetRepository): Promise<MediaAsset[]>` — orphan に加え、前回 purge が中断した `deleting` 行も返す（再試行対象）
-  - `isAbandonedSourceIntake(asset: MediaAsset, now: Instant, graceSec: number): asset is PendingMedia` — 放棄判定ルールの単一ソース: `pending` ∧ `kind='source'` ∧ `updatedAt < now - graceSec`（strict `<`、Issue #468）。source の pending は commit リクエスト内で attach されるため、猶予超過 = 放棄と断定できる（他 kind の pending は対象外 — ADR-004）。sweep の per-row fresh ガードもこれを参照する
+  - `isAbandonedSourceIntake(asset: MediaAsset, now: Instant, graceSec: number): boolean` — 放棄判定ルールの単一ソース: `pending` ∧ `kind='source'` ∧ `updatedAt < now - graceSec`（strict `<`、Issue #468）。source の pending は commit リクエスト内で attach されるため、猶予超過 = 放棄と断定できる（他 kind の pending は対象外 — ADR-004）。sweep の per-row fresh ガードもこれを参照する。判定が値条件（kind・経過時間）を含むため型述語ではなく `boolean`（`PendingMedia` が必要な呼び出し側は `isPending` と組み合わせて絞り込む）
   - `listAbandonedSourceIntakes(now: Instant, graceSec: number, repo: MediaAssetRepository): Promise<PendingMedia[]>` — `isAbandonedSourceIntake` と同一ルールを一括クエリで表現し、放棄された `pending(kind='source')` を返す（猶予 = ドメインルール、アダプターは status/kind フィルタのみ実装）
   - `purge(asset: MediaAsset, storage: ObjectStorage, repo: MediaAssetRepository): Promise<void>` — R2 削除 + DB 物理削除
   - `assertViewableBy(args: { asset: MediaAsset; viewerOwnerId: UserId | null; relatedNoteVisibility: Visibility | null }): void` — `viewerOwnerId === asset.ownerId` なら常に可。`viewerOwnerId === null` のとき、`relatedNoteVisibility === 'public'` または limited リンク経由（呼び出し側で別途トークン検証済み）でなければ `BusinessRuleError('media_not_viewable')`

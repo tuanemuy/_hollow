@@ -96,6 +96,7 @@
 - `noteId: NoteId`
 
 ### 処理フロー
+0. 入力由来の純粋な VO 構築（title / directoryId / frontMatter / overwriteNoteId / directoryNameToCreate のセグメント / tagNames / internalLinkRefs）をステージ (a) より前に行う — malformed 入力はストレージ副作用（pending 行 + blob）を残さず失敗する（Issue #468）
 1. Job 取得、所有者確認、`status === 'previewing'`
 2. modifications.directoryNameToCreate があれば CreateDirectory ロジックで作成
 3. modifications.overwriteNoteId があれば、対象 Note の SaveNote ロジックを使う（ContentHtml を Preview の物に置換）

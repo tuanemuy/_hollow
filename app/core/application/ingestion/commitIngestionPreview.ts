@@ -67,13 +67,33 @@ export async function commitIngestionPreview({
   const actor = UserId.create(input.actorUserId);
   const mods = input.modifications;
 
-  // Resolve the override directory path outside the UoW so VO errors
-  // (forbidden chars / over-long / too deep segments) surface before any
-  // storage interaction. A `/`-delimited path is split into one
-  // `DirectoryName` per segment; the commit then ensures each in turn.
+  // Construct every input-derived VO before stage (a) below so VO errors
+  // (forbidden chars / over-long / malformed ids) surface before any
+  // storage interaction — a malformed request must not leave a pending
+  // row + blob for the sweep chain to reclaim (#468). The `/`-delimited
+  // override path is split into one `DirectoryName` per segment; the
+  // commit then ensures each in turn.
   const directorySegmentsToCreate = parseDirectoryPathToCreate(
     mods.directoryNameToCreate,
   );
+  const explicitDirectoryId =
+    mods.directoryId === undefined
+      ? null
+      : DirectoryId.create(mods.directoryId);
+  const overrideTitle =
+    mods.title !== undefined && mods.title.trim().length > 0
+      ? NoteTitle.create(mods.title)
+      : null;
+  const overrideFrontMatter: FrontMatter | null =
+    mods.frontMatter === undefined
+      ? null
+      : FrontMatterVO.create(
+          mods.frontMatter as Parameters<typeof FrontMatterVO.create>[0],
+        );
+  const overwriteNoteId =
+    mods.overwriteNoteId === undefined
+      ? null
+      : NoteId.create(mods.overwriteNoteId);
   const explicitTagNames = (mods.tagNames ?? []).map((raw) =>
     TagName.create(raw),
   );
@@ -154,10 +174,7 @@ export async function commitIngestionPreview({
       // preview's suggested id > preview's suggested new path > owner's root.
       const directoryId = await resolveDirectoryId({
         actor,
-        explicitId:
-          mods.directoryId === undefined
-            ? null
-            : DirectoryId.create(mods.directoryId),
+        explicitId: explicitDirectoryId,
         segmentsToCreate: directorySegmentsToCreate,
         suggestedId: preview.suggestedDirectoryId,
         suggestedNameSegments: parseDirectoryPathToCreate(
@@ -168,18 +185,10 @@ export async function commitIngestionPreview({
         now,
       });
 
-      const title = NoteTitle.create(
-        mods.title !== undefined && mods.title.trim().length > 0
-          ? mods.title
-          : (preview.title as string),
-      );
+      const title = overrideTitle ?? NoteTitle.create(preview.title as string);
 
       const frontMatter: FrontMatter =
-        mods.frontMatter === undefined
-          ? preview.frontMatter
-          : FrontMatterVO.create(
-              mods.frontMatter as Parameters<typeof FrontMatterVO.create>[0],
-            );
+        overrideFrontMatter ?? preview.frontMatter;
 
       // The form's tag list is authoritative: it is seeded from
       // `preview.suggestedTagNames` on the client, so a submitted
@@ -197,23 +206,21 @@ export async function commitIngestionPreview({
       // from internal-link title resolution (self-link, ADR-005). The
       // overwrite target is fetched / authorised here; the create path
       // mints its id ahead of assembly.
-      const overwriteRaw = mods.overwriteNoteId;
       const overwriteTarget =
-        overwriteRaw === undefined
+        overwriteNoteId === null
           ? null
           : await (async () => {
-              const targetId = NoteId.create(overwriteRaw);
-              const target = await noteRepository.findById(targetId);
+              const target = await noteRepository.findById(overwriteNoteId);
               if (target === null) {
                 throw new NotFoundError(
                   "NOTE_NOT_FOUND",
-                  `Note not found: ${targetId}`,
+                  `Note not found: ${overwriteNoteId}`,
                 );
               }
               if (target.entity.ownerId !== actor) {
                 throw new ForbiddenError(
                   "NOTE_FORBIDDEN",
-                  `Note ${targetId} is not owned by ${actor}`,
+                  `Note ${overwriteNoteId} is not owned by ${actor}`,
                 );
               }
               return target;

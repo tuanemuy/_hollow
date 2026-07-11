@@ -14,6 +14,7 @@ import {
   type ObjectStorage,
   StorageUnavailableError,
 } from "@/core/domain/media/ports/objectStorage";
+import { NoteErrorCode } from "@/core/domain/note/errorCode";
 import type { NoteId as DomainNoteId } from "@/core/domain/note/valueObject";
 import {
   setupTestContainer,
@@ -1055,6 +1056,58 @@ describe("commitIngestionPreview", () => {
       "ingestion.commit.source_temp_missing",
       expect.objectContaining({ jobId }),
     );
+  });
+
+  // Issue #468: input-derived VO construction is hoisted above stage
+  // (a), so a malformed modification fails before the metadata-first row
+  // insert and the R2 put — a trivially invalid request must not strand
+  // reclaim-chain garbage. Guards the hoist ordering: with the VO
+  // construction back inside the main UoW, the pending row + blob would
+  // exist and the zero-rows / no-put assertions fail.
+  it("surfaces the VO error before stage (a): a malformed title leaves no pending row and no blob (Issue #468)", async () => {
+    const base = getContainer();
+    await seedInstanceSettings(base);
+    const owner = await seedUser(base);
+    await seedDirectory(base, owner);
+    const tempKey = `${owner}/ingestion/malformed-title-1`;
+    await base.tempFileStorage.put(tempKey, new ArrayBuffer(4));
+    const jobId = await seedIngestionJob(base, {
+      ownerId: owner,
+      status: "previewing",
+      tempStorageKey: tempKey,
+    });
+
+    const putSpy = vi.spyOn(base.objectStorage, "put");
+
+    try {
+      await commitIngestionPreview({
+        container: base,
+        input: {
+          actorUserId: owner,
+          jobId: jobId,
+          // Over-long (> 200 chars) title: rejected by NoteTitle.create.
+          modifications: { title: "x".repeat(201) },
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      if (!isBusinessRuleError(error)) throw error;
+      expect(error.code).toBe(NoteErrorCode.TitleTooLong);
+    }
+
+    // The VO error fired before any storage interaction: no pending row,
+    // no put, and the temp blob + job stay intact for a corrected retry.
+    expect(await base.db.select().from(schema.mediaAssets)).toHaveLength(0);
+    expect(putSpy).not.toHaveBeenCalled();
+    const tempStorage = base.tempFileStorage as unknown as {
+      has(key: string): boolean;
+    };
+    expect(tempStorage.has(tempKey)).toBe(true);
+    const jobRows = await base.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
+    expect(jobRows[0]?.status).toBe("previewing");
   });
 
   // Issue #468: the main UoW re-reads the stage (a) row and guards it
