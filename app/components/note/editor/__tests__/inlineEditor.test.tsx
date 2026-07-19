@@ -1429,7 +1429,12 @@ describe("InlineEditor structural preservation", () => {
     // onChange argument is likewise plain. To make onChange observable the
     // <pre> text must actually change before the rollback (else cleanClone
     // flattening keeps serialize == lastEmitted and reconciliation stays
-    // silent — arch-risk S-001).
+    // silent — arch-risk S-001), and the edit's debounced emit must stay
+    // PENDING when the rollback trips (no 80ms flush between the two acts),
+    // so the reconciliation is the first onChange to carry the new text.
+    // Mirrors the 4-T3 two-batch construction so the <pre> reconcile path
+    // lines up one-to-one with the non-<pre> reconcile pin (Issue #840
+    // W-001).
     const onChange = vi.fn();
     await act(async () => {
       root.render(
@@ -1441,19 +1446,28 @@ describe("InlineEditor structural preservation", () => {
     });
     const host = findHost();
     const code = requireNode(host.querySelector("code"));
-    // Allowed batch inside <pre>: change the text and inject a highlight
-    // span (opaque region → allowed, snapshot advances with plain <pre>).
+    // (Step A) Allowed batch inside <pre> in its own act: change the text
+    // and inject a highlight span (opaque region → allowed, snapshot
+    // advances with plain <pre>, and the 50ms emit is scheduled). NO 80ms
+    // flush here — `act` does not advance real time, so the debounce stays
+    // pending. Flushing here would let the normal emit fire first, updating
+    // `lastEmittedHtmlRef` to the "foobar" version; the later rollback would
+    // then see `restored === lastEmittedHtmlRef` (changed === false) and the
+    // reconciliation onChange would never fire — the assertion would then
+    // pin the ordinary emit, not the reconcile path (Issue #840 W-001).
     await act(async () => {
       const span = document.createElement("span");
       span.className = "shiki-token-keyword";
       span.textContent = "foobar";
       code.replaceChildren(span);
     });
-    await flushMutations();
     expect(host.querySelector("span")).not.toBeNull();
+    // The debounced emit has NOT fired yet (window not elapsed), so the
+    // only onChange that can carry "foobar" is the rollback reconciliation.
+    expect(onChange).not.toHaveBeenCalled();
 
-    // Trip a rollback elsewhere (remove the <p>'s text into structural
-    // drift by appending a stray element).
+    // (Step B) In a separate act — with NO 80ms flush between — trip a
+    // rollback elsewhere by appending a stray element into structural drift.
     const p = requireNode(host.querySelector("p"));
     await act(async () => {
       const stray = document.createElement("b");
@@ -1467,7 +1481,11 @@ describe("InlineEditor structural preservation", () => {
     const restoredPre = requireNode(host.querySelector("pre"));
     expect(restoredPre.querySelector("span")).toBeNull();
     expect(host.querySelector("code")?.textContent).toBe("foobar");
-    // The reconciled onChange argument is also span-free plain <pre>.
+    // The rollback reconciled the parent: onChange fired synchronously with
+    // the restored DOM, and its argument is span-free plain <pre>. Because
+    // the debounce was still pending (asserted above), this call is the
+    // reconciliation, not an ordinary emit.
+    expect(onChange).toHaveBeenCalled();
     const lastArg = onChange.mock.calls[onChange.mock.calls.length - 1][0];
     expect(lastArg).not.toContain("<span");
     expect(lastArg).toContain("<pre><code>foobar</code></pre>");
