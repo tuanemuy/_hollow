@@ -363,8 +363,7 @@ function CleanupSection() {
   const items: readonly { title: string; description: string }[] = [
     {
       title: "メディア孤児クリーンアップ",
-      description:
-        "参照されないメディアを定期パージします。実行は cron 駆動で、現状は実行履歴を保持しないため最終実行時刻・件数は表示しません。",
+      description: "参照されないメディアを定期的にパージします。",
     },
     {
       title: "ゴミ箱自動パージ",
@@ -374,7 +373,7 @@ function CleanupSection() {
     {
       title: "期限切れエクスポート artifact 削除",
       description:
-        "期限切れの artifact ファイルとメタデータをまとめてパージします。失敗は実行ログで可視化する方針で、実行履歴のアプリ内永続化・画面上のアラートは行いません。能動的な ops 通知は別 Issue で対応します。",
+        "期限切れの artifact ファイルとメタデータをまとめてパージします。",
     },
   ];
   return (
@@ -385,10 +384,7 @@ function CleanupSection() {
           クリーンアップ
         </h2>
       </div>
-      <p className={SECTION_DESC_CLASS}>
-        以下は cron
-        駆動で実行されます。実行履歴のアプリ内永続化は行わない方針のため、ここでは概要のみ表示します。失敗は実行ログで検知します。
-      </p>
+      <p className={SECTION_DESC_CLASS}>以下は定期的に自動実行されます。</p>
       <div className={TABLE_WRAP_CLASS}>
         <div className={TABLE_SCROLL_CLASS}>
           <table className={TABLE_CLASS}>

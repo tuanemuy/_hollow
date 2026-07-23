@@ -334,7 +334,7 @@
     <div class="section-header">
       <h2 class="section-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2L12 3z"/></svg>クリーンアップ</h2>
     </div>
-    <p class="section-desc">以下は cron 駆動で実行されます。実行履歴のアプリ内永続化は行わない方針のため、ここでは概要のみ表示します。失敗は実行ログで検知します。</p>
+    <p class="section-desc">以下は定期的に自動実行されます。</p>
     <div class="table-wrap">
       <div class="table-scroll">
         <table class="table">
@@ -347,7 +347,7 @@
           <tbody>
             <tr class="row-main">
               <td>メディア孤児クリーンアップ</td>
-              <td style="white-space:normal">参照されないメディアを定期パージします。実行は cron 駆動で、現状は実行履歴を保持しないため最終実行時刻・件数は表示しません。</td>
+              <td style="white-space:normal">参照されないメディアを定期的にパージします。</td>
             </tr>
             <tr class="row-main">
               <td>ゴミ箱自動パージ</td>
@@ -355,7 +355,7 @@
             </tr>
             <tr class="row-main">
               <td>期限切れエクスポート artifact 削除</td>
-              <td style="white-space:normal">期限切れの artifact ファイルとメタデータをまとめてパージします。失敗は実行ログで可視化する方針で、実行履歴のアプリ内永続化・画面上のアラートは行いません。能動的な ops 通知は別 Issue で対応します。</td>
+              <td style="white-space:normal">期限切れの artifact ファイルとメタデータをまとめてパージします。</td>
             </tr>
           </tbody>
         </table>
