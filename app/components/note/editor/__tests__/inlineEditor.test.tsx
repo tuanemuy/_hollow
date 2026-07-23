@@ -1116,4 +1116,378 @@ describe("InlineEditor structural preservation", () => {
     // attribute.
     expect(lastCallArg).not.toContain("contenteditable");
   });
+
+  // Issue #840: the rollback baseline follows the last-known-good DOM, so
+  // an out-of-bounds mutation rewinds only its own batch — earlier legit
+  // edits since the last rebuild are kept, and the parent `value` is
+  // reconciled to the restored DOM even through the debounce window.
+
+  it("keeps a preceding legit edit when a later batch rolls back (Issue #840 snapshot follow / TC-005)", async () => {
+    // <p>before<img>after</p>: append TAIL to the trailing text (allowed →
+    // snapshot advances), then force-remove the <img> (rollback). The
+    // rollback must rewind only the <img> removal, keeping TAIL.
+    const onChange = vi.fn();
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value='<p>before<img src="/media/abc" alt="">after</p>'
+          onChange={onChange}
+        />,
+      );
+    });
+    const host = findHost();
+    const p = requireNode(host.querySelector("p"));
+    const tailText = requireNode(p.lastChild);
+    expect(tailText.nodeType).toBe(Node.TEXT_NODE);
+    // Legit edit E1 (characterData): "after" → "afterTAIL".
+    await act(async () => {
+      (tailText as Text).textContent = "afterTAIL";
+    });
+    await flushMutations();
+    // Now remove the <img> in a separate batch → rollback of that batch.
+    const img = requireNode(host.querySelector("img"));
+    await act(async () => {
+      img.remove();
+    });
+    await flushMutations();
+    // <img> restored AND the preceding TAIL edit survives (not rewound to
+    // the initial rebuild snapshot).
+    expect(host.querySelector("img")?.getAttribute("src")).toBe("/media/abc");
+    expect(host.querySelector("p")?.textContent).toContain("TAIL");
+  });
+
+  it("does not silently overwrite a saved sibling block when another block rolls back (Issue #840 / TC-007)", async () => {
+    // Two paragraphs; edit each with a debounce flush between so each edit
+    // reaches autosave (onChange). Then trip a rollback in a third element
+    // and confirm (1) the earlier blocks survive in the DOM and (2) a
+    // later emit does not carry the pre-edit body.
+    const onChange = vi.fn();
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<p>aaa</p><p>bbb</p><table><tbody><tr><td>c1</td><td>c2</td></tr></tbody></table>"
+          onChange={onChange}
+        />,
+      );
+    });
+    const host = findHost();
+    const paragraphs = host.querySelectorAll("p");
+    expect(paragraphs).toHaveLength(2);
+    // Edit block A, flush to autosave.
+    await act(async () => {
+      (requireNode(paragraphs[0].firstChild) as Text).textContent = "aaaEDIT";
+    });
+    await flushMutations();
+    // Edit block B, flush to autosave.
+    await act(async () => {
+      (requireNode(paragraphs[1].firstChild) as Text).textContent = "bbbEDIT";
+    });
+    await flushMutations();
+
+    // Trip a rollback: force-remove a <td> (structural drift).
+    const tr = requireNode(host.querySelector("tr"));
+    await act(async () => {
+      tr.removeChild(requireNode(tr.firstChild));
+    });
+    await flushMutations();
+
+    // (1) DOM keeps the preceding legit edits — no drag-along loss.
+    expect(host.querySelectorAll("td")).toHaveLength(2);
+    expect(host.querySelector("p")?.textContent).toBe("aaaEDIT");
+
+    // (2) A later edit → emit must carry the up-to-date body (aaaEDIT),
+    // not the pre-edit "aaa" — i.e. no silent overwrite-save of stale
+    // content.
+    const nextParagraphs = host.querySelectorAll("p");
+    await act(async () => {
+      (requireNode(nextParagraphs[1].firstChild) as Text).textContent =
+        "bbbEDIT2";
+    });
+    await flushMutations();
+    const lastArg = onChange.mock.calls[onChange.mock.calls.length - 1][0];
+    expect(lastArg).toContain("aaaEDIT");
+    expect(lastArg).toContain("bbbEDIT2");
+  });
+
+  it("reconciles the parent value on rollback when a captured edit is still debounce-pending (Issue #840 P-001)", async () => {
+    // The debounce window: a legit edit E1 is captured into the snapshot
+    // but its 50ms emit has NOT fired when a rollback trips. Without
+    // reconciliation the restored DOM keeps E1 but the parent `value`
+    // never receives it (the pending emit early-returns). E1 and the
+    // rollback trigger must be in SEPARATE observer batches — else the
+    // whole batch is a rollback and E1 never gets captured.
+    const onChange = vi.fn();
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value='<p>seed</p><p><img src="/media/abc" alt=""></p>'
+          onChange={onChange}
+        />,
+      );
+    });
+    const host = findHost();
+    const firstP = requireNode(host.querySelector("p"));
+    // (Step A) E1 in its own act → observer captures it as an allowed
+    // batch and schedules the 50ms emit. `act` does not advance real time,
+    // so the debounce stays pending (no 80ms flush here).
+    await act(async () => {
+      (requireNode(firstP.firstChild) as Text).textContent = "seedEDIT";
+    });
+    // No debounced emit yet (window not elapsed).
+    expect(onChange).not.toHaveBeenCalled();
+
+    // (Step B) In a separate act — with NO 80ms flush between — trip a
+    // rollback by removing the <img>.
+    const img = requireNode(host.querySelector("img"));
+    await act(async () => {
+      img.remove();
+    });
+    await flushMutations();
+
+    // (1) E1 survives in the DOM.
+    expect(host.querySelector("p")?.textContent).toBe("seedEDIT");
+    expect(host.querySelector("img")).not.toBeNull();
+    // (2) The rollback reconciled the parent: onChange fired synchronously
+    // with the restored DOM including E1.
+    expect(onChange).toHaveBeenCalled();
+    const lastArg = onChange.mock.calls[onChange.mock.calls.length - 1][0];
+    expect(lastArg).toContain("seedEDIT");
+    expect(lastArg).toContain('src="/media/abc"');
+  });
+
+  it("keeps a typed character in an empty <td> by allowing the placeholder <br> removal (Issue #840 candidate C / AC-4)", async () => {
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<table><tbody><tr><td><br></td></tr></tbody></table>"
+          onChange={vi.fn()}
+        />,
+      );
+    });
+    const host = findHost();
+    const td = requireNode(host.querySelector("td"));
+    // Browser behaviour on first keystroke into an empty editable block:
+    // insert the text node, remove the placeholder <br>, in one batch.
+    await act(async () => {
+      td.replaceChildren(document.createTextNode("X"));
+    });
+    await flushMutations();
+    // Not rolled back: the character stays.
+    expect(host.querySelector("td")?.textContent).toBe("X");
+    expect(host.querySelector("br")).toBeNull();
+  });
+
+  it("keeps a typed character in an empty <p> by allowing the placeholder <br> removal (Issue #840 candidate C / AC-4)", async () => {
+    await act(async () => {
+      root.render(<InlineEditor value="<p><br></p>" onChange={vi.fn()} />);
+    });
+    const host = findHost();
+    const p = requireNode(host.querySelector("p"));
+    await act(async () => {
+      p.replaceChildren(document.createTextNode("X"));
+    });
+    await flushMutations();
+    expect(host.querySelector("p")?.textContent).toBe("X");
+    expect(host.querySelector("br")).toBeNull();
+  });
+
+  it("still rolls back a <strong> removal, an <img> removal, and a <br> removal that leaves an element child (Issue #840 AC-5 / candidate C guard)", async () => {
+    // (a) <strong> removal.
+    await act(async () => {
+      root.render(
+        <InlineEditor value="<p>a<strong>b</strong>c</p>" onChange={vi.fn()} />,
+      );
+    });
+    let host = findHost();
+    const strong = requireNode(host.querySelector("strong"));
+    await act(async () => {
+      strong.remove();
+    });
+    await flushMutations();
+    expect(host.querySelector("strong")?.textContent).toBe("b");
+
+    // (b) <img> removal — covered by the existing #287 pin too; re-pinned
+    // here under the follow-snapshot regime.
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value='<p><img src="/media/abc" alt=""></p>'
+          onChange={vi.fn()}
+        />,
+      );
+    });
+    host = findHost();
+    const img = requireNode(host.querySelector("img"));
+    await act(async () => {
+      img.remove();
+    });
+    await flushMutations();
+    expect(host.querySelector("img")?.getAttribute("src")).toBe("/media/abc");
+
+    // (c) <br> removal in a block that still holds an element child
+    // (`querySelector("*") !== null`) — the placeholder allowance must NOT
+    // apply. Built with an <img> sibling so removing the <br> leaves an
+    // element behind (a 2-text-run <p>a<br>b</p> would pass the guard and
+    // is intentionally not used — arch-risk S-001).
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value='<p>a<br><img src="/media/def" alt=""></p>'
+          onChange={vi.fn()}
+        />,
+      );
+    });
+    host = findHost();
+    const br = requireNode(host.querySelector("br"));
+    await act(async () => {
+      br.remove();
+    });
+    await flushMutations();
+    // Rolled back: the <br> is restored (and the <img> stays).
+    expect(host.querySelector("br")).not.toBeNull();
+    expect(host.querySelector("img")?.getAttribute("src")).toBe("/media/def");
+  });
+
+  it("still rolls back on compositionend after the snapshot advanced on a prior legit edit (Issue #840 AC-6)", async () => {
+    const onChange = vi.fn();
+    await act(async () => {
+      root.render(<InlineEditor value="<p>foo</p>" onChange={onChange} />);
+    });
+    const host = findHost();
+    const p = requireNode(host.querySelector("p"));
+    // A non-composing allowed edit advances the snapshot.
+    await act(async () => {
+      (requireNode(p.firstChild) as Text).textContent = "foobar";
+    });
+    await flushMutations();
+    // Now compose and drift the structure → compositionend must still roll
+    // back (snapshot follow did NOT disable drift detection).
+    await act(async () => {
+      host.dispatchEvent(
+        new CompositionEvent("compositionstart", { bubbles: true }),
+      );
+    });
+    await act(async () => {
+      const extra = document.createElement("span");
+      extra.textContent = "x";
+      p.appendChild(extra);
+    });
+    await act(async () => {
+      host.dispatchEvent(
+        new CompositionEvent("compositionend", { bubbles: true }),
+      );
+    });
+    await flushMutations();
+    expect(host.querySelector("span")).toBeNull();
+    // Rolled back to the last-known-good DOM (which includes the earlier
+    // "foobar" edit, not the initial "foo").
+    expect(host.querySelector("p")?.textContent).toBe("foobar");
+  });
+
+  it("does not fold text typed mid-composition into the snapshot, so a compositionend drift rewinds it (Issue #840 AC-6 / capture guard)", async () => {
+    // The capture guard skips snapshot advance while composing. If it were
+    // removed, mid-composition text would be folded into the baseline and
+    // survive the drift rollback. Behaviour pin (the guard is a private
+    // closure): a characterData edit made during composition must be
+    // rewound by the compositionend drift rollback.
+    await act(async () => {
+      root.render(<InlineEditor value="<p>foo</p>" onChange={vi.fn()} />);
+    });
+    const host = findHost();
+    const p = requireNode(host.querySelector("p"));
+    await act(async () => {
+      host.dispatchEvent(
+        new CompositionEvent("compositionstart", { bubbles: true }),
+      );
+    });
+    // characterData edit while composing (allowed, but must NOT advance
+    // the snapshot).
+    await act(async () => {
+      (requireNode(p.firstChild) as Text).textContent = "fooDURING";
+    });
+    // Structural drift while composing.
+    await act(async () => {
+      const extra = document.createElement("span");
+      extra.textContent = "x";
+      p.appendChild(extra);
+    });
+    // compositionend → drift vs snapshot → rollback to "foo".
+    await act(async () => {
+      host.dispatchEvent(
+        new CompositionEvent("compositionend", { bubbles: true }),
+      );
+    });
+    await flushMutations();
+    expect(host.querySelector("span")).toBeNull();
+    // Mid-composition text was NOT folded into the baseline, so it is gone.
+    expect(host.querySelector("p")?.textContent).toBe("foo");
+  });
+
+  it("restores a plain <pre> (no highlight spans) after a rollback and reconciles onChange (Issue #840 AC-7)", async () => {
+    // The snapshot captures <pre> as plain text (cleanClone flattens it),
+    // so a rollback restores a span-free <pre>, and the reconciled
+    // onChange argument is likewise plain. To make onChange observable the
+    // <pre> text must actually change before the rollback (else cleanClone
+    // flattening keeps serialize == lastEmitted and reconciliation stays
+    // silent — arch-risk S-001), and the edit's debounced emit must stay
+    // PENDING when the rollback trips (no 80ms flush between the two acts),
+    // so the reconciliation is the first onChange to carry the new text.
+    // Mirrors the 4-T3 two-batch construction so the <pre> reconcile path
+    // lines up one-to-one with the non-<pre> reconcile pin (Issue #840
+    // W-001).
+    const onChange = vi.fn();
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<p>seed</p><pre><code>foo</code></pre>"
+          onChange={onChange}
+        />,
+      );
+    });
+    const host = findHost();
+    const code = requireNode(host.querySelector("code"));
+    // (Step A) Allowed batch inside <pre> in its own act: change the text
+    // and inject a highlight span (opaque region → allowed, snapshot
+    // advances with plain <pre>, and the 50ms emit is scheduled). NO 80ms
+    // flush here — `act` does not advance real time, so the debounce stays
+    // pending. Flushing here would let the normal emit fire first, updating
+    // `lastEmittedHtmlRef` to the "foobar" version; the later rollback would
+    // then see `restored === lastEmittedHtmlRef` (changed === false) and the
+    // reconciliation onChange would never fire — the assertion would then
+    // pin the ordinary emit, not the reconcile path (Issue #840 W-001).
+    await act(async () => {
+      const span = document.createElement("span");
+      span.className = "shiki-token-keyword";
+      span.textContent = "foobar";
+      code.replaceChildren(span);
+    });
+    expect(host.querySelector("span")).not.toBeNull();
+    // The debounced emit has NOT fired yet (window not elapsed), so the
+    // only onChange that can carry "foobar" is the rollback reconciliation.
+    expect(onChange).not.toHaveBeenCalled();
+
+    // (Step B) In a separate act — with NO 80ms flush between — trip a
+    // rollback elsewhere by appending a stray element into structural drift.
+    const p = requireNode(host.querySelector("p"));
+    await act(async () => {
+      const stray = document.createElement("b");
+      stray.textContent = "x";
+      p.appendChild(stray);
+    });
+    await flushMutations();
+
+    // Restored DOM: <pre> is plain (no highlight span leaked into the
+    // baseline).
+    const restoredPre = requireNode(host.querySelector("pre"));
+    expect(restoredPre.querySelector("span")).toBeNull();
+    expect(host.querySelector("code")?.textContent).toBe("foobar");
+    // The rollback reconciled the parent: onChange fired synchronously with
+    // the restored DOM, and its argument is span-free plain <pre>. Because
+    // the debounce was still pending (asserted above), this call is the
+    // reconciliation, not an ordinary emit.
+    expect(onChange).toHaveBeenCalled();
+    const lastArg = onChange.mock.calls[onChange.mock.calls.length - 1][0];
+    expect(lastArg).not.toContain("<span");
+    expect(lastArg).toContain("<pre><code>foobar</code></pre>");
+  });
 });

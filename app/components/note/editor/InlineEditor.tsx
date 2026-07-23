@@ -35,16 +35,27 @@ import { useEffect, useRef } from "react";
  *    inheritance. Tags outside the allow-list stay read-only.
  *
  * 2. **Structure rollback via MutationObserver.** A snapshot of the
- *    parsed `<body>` is kept; any structural mutation that is not a
- *    pure text edit (or an IME-in-flight mutation) triggers a rollback
- *    to the snapshot:
+ *    last-known-good `<body>` is kept. It starts at the parsed `value`
+ *    and *advances* to the current DOM after every allowed (legit) batch
+ *    — and on a successful `compositionend` — so a rollback rewinds only
+ *    the single offending batch, not every edit since the last rebuild
+ *    (Issue #840). The advance is skipped while IME is composing or a
+ *    `<pre>` is being (re)highlighted so half-committed / display-only
+ *    churn never becomes the baseline. Any structural mutation that is
+ *    not a pure text edit (or an IME-in-flight mutation) triggers a
+ *    rollback to the snapshot:
  *
  *    - `characterData`: always allowed (the legitimate text-edit path).
  *    - `childList`: allowed iff (a) IME is in flight OR (b) the
- *      `target` is `isContentEditable === true` AND every node in
- *      `addedNodes` / `removedNodes` is a `TEXT_NODE` (covers
- *      Backspace-merge / insertText paths that legitimately churn
- *      text nodes).
+ *      `target` is `isContentEditable === true`, every `addedNodes`
+ *      entry is a `TEXT_NODE`, and every `removedNodes` entry is a
+ *      `TEXT_NODE` or an attribute-less `<br>` (covers Backspace-merge /
+ *      insertText plus the first character typed into a #287 empty
+ *      editable block, whose browser placeholder `<br>` is removed). A
+ *      removed `<br>` is only tolerated when the target ends up with no
+ *      element children (`querySelector("*") === null`), so a `<br>`
+ *      removal that leaves an `<img>` / decoration element behind still
+ *      rolls back.
  *    - `attributes`: allowed only while IME is in flight.
  *    - On `compositionend`, run `takeRecords()` → compare structure
  *      against the snapshot → rollback if drift → finally clear
@@ -55,9 +66,17 @@ import { useEffect, useRef } from "react";
  *
  * 3. **Rollback procedure.** Always `observer.disconnect()` →
  *    `observer.takeRecords()` → `host.replaceChildren()` → append a
- *    freshly cloned snapshot → re-apply contentEditable → restart
- *    `observer.observe()`. The snapshot must be cloned every rollback
- *    so multiple rollbacks within a session stay independent.
+ *    freshly cloned snapshot → re-apply contentEditable → **reconcile
+ *    the parent `value`** → restart `observer.observe()`. The snapshot
+ *    must be cloned every rollback so multiple rollbacks within a
+ *    session stay independent. Reconciliation (Issue #840 P-001): the
+ *    snapshot advances synchronously but `onChange` is debounced, so the
+ *    restored DOM can carry a legit edit the parent has not received yet.
+ *    Rollback therefore clears any pending debounced emit (which would
+ *    serialize the restored DOM and early-return, dropping that edit) and
+ *    fires `onChange` synchronously when the restored HTML differs from
+ *    `lastEmittedHtmlRef`, guaranteeing the parent `value` always equals
+ *    the post-rollback DOM.
  *
  * 4. **Init-failure fallback.** Parse failure (DOMParser throws / body
  *    is null / non-empty input parses to an empty body) calls
@@ -340,6 +359,29 @@ function clearEditable(host: HTMLElement): void {
 }
 
 /**
+ * Deep-clone `host` and normalize it to the clean saved form: strip
+ * every runtime `contenteditable` attribute and flatten each `<pre>`
+ * back to its plain text (the highlighter injects display-only
+ * `<span>`s that must never leak into the saved HTML;
+ * `querySelectorAll("pre")` — not `pre code` — covers the bare-`<pre>`
+ * shape too). Shared by `serializeHostContent` (→ `innerHTML`) and the
+ * snapshot-capture path so the rollback baseline keeps the exact shape
+ * `rebuild` produces (contenteditable-free, `<pre>` plain).
+ */
+function cleanClone(host: HTMLElement): HTMLElement {
+  const clone = host.cloneNode(true) as HTMLElement;
+  for (const el of clone.querySelectorAll("[contenteditable]")) {
+    el.removeAttribute("contenteditable");
+  }
+  for (const pre of clone.querySelectorAll("pre")) {
+    const code = pre.querySelector("code");
+    const target = code ?? pre;
+    target.textContent = target.textContent ?? "";
+  }
+  return clone;
+}
+
+/**
  * Serialize the host's current content for the `onChange` boundary,
  * stripped of `contenteditable` attributes we added at runtime. This
  * is the value that crosses into `state.contentHtml` and ultimately
@@ -347,22 +389,7 @@ function clearEditable(host: HTMLElement): void {
  * leak.
  */
 function serializeHostContent(host: HTMLElement): string {
-  const clone = host.cloneNode(true) as HTMLElement;
-  for (const el of clone.querySelectorAll("[contenteditable]")) {
-    el.removeAttribute("contenteditable");
-  }
-  // `<pre>` is an opaque region: the highlighter injects display-only
-  // `<span>`s that must never leak into the saved HTML. Reset each
-  // `<pre>` to its plain text so the persisted form is always a clean
-  // `<pre><code>text</code></pre>` / `<pre>text</pre>`.
-  // `querySelectorAll("pre")` (not `pre code`) covers the bare-`<pre>`
-  // shape too.
-  for (const pre of clone.querySelectorAll("pre")) {
-    const code = pre.querySelector("code");
-    const target = code ?? pre;
-    target.textContent = target.textContent ?? "";
-  }
-  return clone.innerHTML;
+  return cleanClone(host).innerHTML;
 }
 
 /**
@@ -400,6 +427,24 @@ function structureSignature(root: Element | DocumentFragment): string {
   return parts.join("");
 }
 
+/**
+ * True for an attribute-less `<br>` element. Despite the name this does
+ * NOT distinguish a browser-generated placeholder `<br>` (the filler in
+ * an empty editable block) from a user-typed line-break `<br>`
+ * (`<p>a<br>b</p>`) — the two are indistinguishable in the DOM without
+ * reconstructing the pre-mutation state, which is not worth the cost.
+ * Callers pair it with a "no element children remain"
+ * (`querySelector("*") === null`) guard so the allowance stays confined
+ * to blocks that flatten to text-only (Issue #840 candidate C).
+ */
+function isPlaceholderBr(node: Node): boolean {
+  return (
+    node.nodeType === Node.ELEMENT_NODE &&
+    (node as Element).tagName.toLowerCase() === "br" &&
+    (node as Element).attributes.length === 0
+  );
+}
+
 type Mutability = { kind: "allowed" } | { kind: "rollback" };
 
 function classifyRecords(
@@ -432,7 +477,24 @@ function classifyRecords(
         return true;
       };
       if (!onlyText(r.addedNodes)) return { kind: "rollback" };
-      if (!onlyText(r.removedNodes)) return { kind: "rollback" };
+      // `removedNodes` may legitimately churn text nodes (Backspace-merge
+      // / insertText) and, for a #287 empty editable block, the browser
+      // placeholder `<br>` that the first typed character removes. The
+      // placeholder allowance is confined to blocks that end up text-only
+      // (`querySelector("*") === null`), so a `<br>` removal that leaves
+      // an `<img>` / decoration element behind still rolls back.
+      let removedBr = false;
+      for (const n of r.removedNodes) {
+        if (n.nodeType === Node.TEXT_NODE) continue;
+        if (isPlaceholderBr(n)) {
+          removedBr = true;
+          continue;
+        }
+        return { kind: "rollback" };
+      }
+      if (removedBr && targetEl.querySelector("*") !== null) {
+        return { kind: "rollback" };
+      }
       continue;
     }
     if (r.type === "attributes") {
@@ -507,6 +569,20 @@ export function InlineEditor({
       }, ONCHANGE_DEBOUNCE_MS);
     };
 
+    // Capture the current host content as the new rollback baseline.
+    // Moves the children of a `cleanClone` (contenteditable-free, `<pre>`
+    // plain) into a fresh detached `<body>`, matching the shape `rebuild`
+    // produces — no `DOMParser` round-trip (Issue #840). Callers guard
+    // against capturing while IME is composing or a `<pre>` is
+    // re-highlighting, so half-committed / display-only churn never
+    // becomes the baseline.
+    const captureSnapshot = () => {
+      const clone = cleanClone(host);
+      const body = host.ownerDocument.createElement("body") as HTMLBodyElement;
+      body.replaceChildren(...Array.from(clone.childNodes));
+      snapshotRef.current = body;
+    };
+
     const rollback = () => {
       const snap = snapshotRef.current;
       if (snap === null) return;
@@ -519,7 +595,21 @@ export function InlineEditor({
       const fresh = snap.cloneNode(true) as HTMLBodyElement;
       host.replaceChildren(...Array.from(fresh.childNodes));
       applyEditable(host, !disabledRef.current);
-      lastEmittedHtmlRef.current = serializeHostContent(host);
+      // Reconcile the parent `value` to the restored DOM (Issue #840
+      // P-001). The snapshot advances synchronously but `onChange` is
+      // debounced, so the restored DOM can carry a legit edit the parent
+      // has not received yet. A pending debounced emit would serialize
+      // this same restored DOM and early-return (`next ===
+      // lastEmittedHtmlRef`), silently dropping that edit — so kill it and
+      // fire `onChange` synchronously when the restored HTML differs,
+      // guaranteeing `value` always equals the post-rollback DOM.
+      if (debounceTimerRef.current !== null) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      const restored = serializeHostContent(host);
+      const changed = restored !== lastEmittedHtmlRef.current;
+      lastEmittedHtmlRef.current = restored;
       if (obs !== null) {
         obs.observe(host, {
           subtree: true,
@@ -528,6 +618,7 @@ export function InlineEditor({
           attributes: true,
         });
       }
+      if (changed) onChangeRef.current(restored);
       // Re-decorate after restoring the plain snapshot.
       highlightAll();
     };
@@ -585,6 +676,14 @@ export function InlineEditor({
       if (verdict.kind === "rollback") {
         rollback();
         return;
+      }
+      // Advance the rollback baseline to this legit DOM, but not while IME
+      // is composing (half-committed structure) or a `<pre>` is
+      // re-highlighting (display-only span churn) — folding either into
+      // the snapshot would defeat compositionend drift detection / `<pre>`
+      // opacity (Issue #840).
+      if (!isComposingRef.current && !isHighlightingRef.current) {
+        captureSnapshot();
       }
       emit();
     });
@@ -751,6 +850,12 @@ export function InlineEditor({
         }
       }
       isComposingRef.current = false;
+      // Composition succeeded (no drift): fold the now-confirmed text into
+      // the rollback baseline before emitting. Placed after the signature
+      // check regardless of whether the pending-classification block above
+      // ran — an in-flight observer may have drained the confirm batch,
+      // leaving `takeRecords()` empty (Issue #840).
+      captureSnapshot();
       emit();
     };
 
