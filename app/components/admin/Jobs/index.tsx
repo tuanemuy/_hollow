@@ -374,7 +374,7 @@ function CleanupSection() {
     {
       title: "期限切れエクスポート artifact 削除",
       description:
-        "期限切れの artifact ファイルとメタデータをまとめてパージします。実行履歴の永続化と失敗アラートは別 Issue で対応予定です。",
+        "期限切れの artifact ファイルとメタデータをまとめてパージします。失敗は実行ログで可視化する方針で、実行履歴のアプリ内永続化・画面上のアラートは行いません。能動的な ops 通知は別 Issue で対応します。",
     },
   ];
   return (
@@ -387,7 +387,7 @@ function CleanupSection() {
       </div>
       <p className={SECTION_DESC_CLASS}>
         以下は cron
-        駆動で実行されます。実行履歴の永続化は未対応のため、ここでは概要のみ表示します。
+        駆動で実行されます。実行履歴のアプリ内永続化は行わない方針のため、ここでは概要のみ表示します。失敗は実行ログで検知します。
       </p>
       <div className={TABLE_WRAP_CLASS}>
         <div className={TABLE_SCROLL_CLASS}>

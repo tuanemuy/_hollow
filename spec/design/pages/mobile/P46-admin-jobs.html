@@ -318,7 +318,7 @@
     <div class="section-header">
       <h2 class="section-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2L12 3z"/></svg>クリーンアップ</h2>
     </div>
-    <p class="section-desc">以下は cron 駆動で実行されます。実行履歴の永続化は未対応のため、ここでは概要のみ表示します。</p>
+    <p class="section-desc">以下は cron 駆動で実行されます。実行履歴のアプリ内永続化は行わない方針のため、ここでは概要のみ表示します。失敗は実行ログで検知します。</p>
     <div class="info-list">
       <article class="info-card">
         <div class="info-card-title">メディア孤児クリーンアップ</div>
@@ -330,7 +330,7 @@
       </article>
       <article class="info-card">
         <div class="info-card-title">期限切れエクスポート artifact 削除</div>
-        <p class="info-card-body">期限切れの artifact ファイルとメタデータをまとめてパージします。実行履歴の永続化と失敗アラートは別 Issue で対応予定です。</p>
+        <p class="info-card-body">期限切れの artifact ファイルとメタデータをまとめてパージします。失敗は実行ログで可視化する方針で、実行履歴のアプリ内永続化・画面上のアラートは行いません。能動的な ops 通知は別 Issue で対応します。</p>
       </article>
     </div>
   </section>
