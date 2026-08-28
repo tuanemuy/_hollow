@@ -1,5 +1,70 @@
 # Changelog
 
+## [0.4.0](https://github.com/tuanemuy/hollow/compare/v0.3.0...v0.4.0) (2026-08-28)
+
+
+### Features
+
+* **a11y:** [#506](https://github.com/tuanemuy/hollow/issues/506) 非モーダル dialog Popover に open 時の初期フォーカスを追加 ([#812](https://github.com/tuanemuy/hollow/issues/812)) ([2220f47](https://github.com/tuanemuy/hollow/commit/2220f4710e7859a619e50dc4503e7c04f6ddd32a))
+* **a11y:** [#660](https://github.com/tuanemuy/hollow/issues/660) 表示モード segmented を APG Radio Group 化 ([#774](https://github.com/tuanemuy/hollow/issues/774)) ([1eaec36](https://github.com/tuanemuy/hollow/commit/1eaec36a3e315268617a129bcc52acd0fbe6ac90))
+* **a11y:** [#776](https://github.com/tuanemuy/hollow/issues/776) 残りの不完全 role=tablist を APG 準拠化（並び替え軸 radiogroup / 編集モード Tabs） ([#780](https://github.com/tuanemuy/hollow/issues/780)) ([15446b6](https://github.com/tuanemuy/hollow/commit/15446b6524a24619f552f13890b63e1ddc05d6c8))
+* **admin:** [#595](https://github.com/tuanemuy/hollow/issues/595) P40 ダッシュボード 24h チャート + 最近のアクティビティ backend 新設 ([#746](https://github.com/tuanemuy/hollow/issues/746)) ([b1a6304](https://github.com/tuanemuy/hollow/commit/b1a6304ecb82d2510b12d50ce9eca5805db9cf68))
+* **admin:** [#748](https://github.com/tuanemuy/hollow/issues/748) LLM 呼び出しの永続記録源を新設し P40 ダッシュボードに LLM 時系列を追従 ([#760](https://github.com/tuanemuy/hollow/issues/760)) ([6948a9d](https://github.com/tuanemuy/hollow/commit/6948a9ddd24dc8868a62d4fdce99e574486e2650))
+* **editor:** [#762](https://github.com/tuanemuy/hollow/issues/762) HTML 編集タブで本文を整形表示し保存時に minify する ([#767](https://github.com/tuanemuy/hollow/issues/767)) ([caae426](https://github.com/tuanemuy/hollow/commit/caae426b5ca9ced75e206af3a58efe2d588c7ce7))
+* **media:** [#468](https://github.com/tuanemuy/hollow/issues/468) source blob のストレージ衛生 — 保持ポリシー明文化と孤児 blob 回収 ([#834](https://github.com/tuanemuy/hollow/issues/834)) ([9a19612](https://github.com/tuanemuy/hollow/commit/9a196125384d1e1ace9d253048d173dedb18b289))
+* **note:** [#743](https://github.com/tuanemuy/hollow/issues/743) ディレクトリパンくずを詳細と揃える（末尾×廃止・現在地非リンク化・配置統一） ([#744](https://github.com/tuanemuy/hollow/issues/744)) ([97c99bb](https://github.com/tuanemuy/hollow/commit/97c99bbb3a548f6f1cec1aeac875dd57e73c8da4))
+* **note:** [#754](https://github.com/tuanemuy/hollow/issues/754) モバイルのノート一覧フィルターを集約トリガー+ボトムシート化（横スクロール撤去） ([#756](https://github.com/tuanemuy/hollow/issues/756)) ([b75e550](https://github.com/tuanemuy/hollow/commit/b75e55042f083e8617e4fa9c0821812144c460d7))
+* **note:** [#789](https://github.com/tuanemuy/hollow/issues/789) タグ入力を combobox 化し見た目と入力方法を刷新 ([#802](https://github.com/tuanemuy/hollow/issues/802)) ([8d9e5a6](https://github.com/tuanemuy/hollow/commit/8d9e5a6e8eecfb70b5ca79d5fcf6d82079d0f689))
+* **note:** [#798](https://github.com/tuanemuy/hollow/issues/798) WYSIWYG ツールバーの「画像」ボタンを MediaUploader に配線 ([#800](https://github.com/tuanemuy/hollow/issues/800)) ([a7032f0](https://github.com/tuanemuy/hollow/commit/a7032f0e6a6ef7a9face0c336f96cb4324a59971))
+* **note:** [#803](https://github.com/tuanemuy/hollow/issues/803) タグ候補パネルの viewport クランプ / 外側クリッククローズ ([#806](https://github.com/tuanemuy/hollow/issues/806)) ([c4ee709](https://github.com/tuanemuy/hollow/commit/c4ee7094ec361e2a32d38e286697c4334767e57b))
+* **note:** [#818](https://github.com/tuanemuy/hollow/issues/818) ノート編集画面(P12)のモバイル表示を最適化 ([#822](https://github.com/tuanemuy/hollow/issues/822)) ([276fb42](https://github.com/tuanemuy/hollow/commit/276fb421b29c2bd283e0cf0ef8b1c7de6400c48a))
+* **note:** [#819](https://github.com/tuanemuy/hollow/issues/819) ページ遷移フィードバック（トップ進捗バー＋編集スケルトンの Suspense ストリーミング） ([#826](https://github.com/tuanemuy/hollow/issues/826)) ([18a09b1](https://github.com/tuanemuy/hollow/commit/18a09b1e72b3b2c4f8d0aba4146d39345115a0e2))
+* **note:** [#824](https://github.com/tuanemuy/hollow/issues/824) P12 編集中のヘッダー簡略タイトル（モバイル orientation） ([#828](https://github.com/tuanemuy/hollow/issues/828)) ([8da0b0c](https://github.com/tuanemuy/hollow/commit/8da0b0c295762eba23337cbb82d22bc22b815415))
+* **note:** [#825](https://github.com/tuanemuy/hollow/issues/825) P12 モバイルエディタの残 UX 改善（ツールバー圧縮・ネイティブダイアログのカスタム UI 化） ([#831](https://github.com/tuanemuy/hollow/issues/831)) ([f3a4003](https://github.com/tuanemuy/hollow/commit/f3a400351d9b17f0f9242071e10964a0e6a9db34))
+* **observability:** SectionErrorBoundary のセクション失敗を本番で観測可能にする ([#729](https://github.com/tuanemuy/hollow/issues/729)) ([7a56af6](https://github.com/tuanemuy/hollow/commit/7a56af61e195a3bc25ad84796807f5d5ab00b904))
+* **publication:** P14 公開設定に「未保存の変更があります」警告を追加 ([#583](https://github.com/tuanemuy/hollow/issues/583)) ([#730](https://github.com/tuanemuy/hollow/issues/730)) ([40a87d2](https://github.com/tuanemuy/hollow/commit/40a87d26b23bac24bfe5caae2d99a0e2627251b6))
+* **search:** [#779](https://github.com/tuanemuy/hollow/issues/779) 公開検索(P32)の結果タイトルにキーワードハイライトを適用 ([#785](https://github.com/tuanemuy/hollow/issues/785)) ([6ca77b7](https://github.com/tuanemuy/hollow/commit/6ca77b7baa2c65ab2a7ae68e244af915e1768bba))
+* **settings:** [#573](https://github.com/tuanemuy/hollow/issues/573) P24 アカウント削除強化（多段確認 + 削除影響の実データ集計） ([#742](https://github.com/tuanemuy/hollow/issues/742)) ([5ac111f](https://github.com/tuanemuy/hollow/commit/5ac111f1c4ca3e6762e25b824101957fc6b8c077))
+* **settings:** [#615](https://github.com/tuanemuy/hollow/issues/615) P22 セッション一覧の表示リッチ化（device-parser / 最終アクセス時刻） ([#775](https://github.com/tuanemuy/hollow/issues/775)) ([504b7fe](https://github.com/tuanemuy/hollow/commit/504b7fec2e7eb8023e4e16e5828104329fbfff7b))
+* **speech:** [#738](https://github.com/tuanemuy/hollow/issues/738) 追加の文字起こしプロバイダ Deepgram Nova-3 を registry に対応 ([#765](https://github.com/tuanemuy/hollow/issues/765)) ([7356cb0](https://github.com/tuanemuy/hollow/commit/7356cb01757be8c23419bb102eb54626baca156a))
+* **speech:** [#766](https://github.com/tuanemuy/hollow/issues/766) Gemini audio 文字起こしプロバイダを registry に追加 ([#794](https://github.com/tuanemuy/hollow/issues/794)) ([4422110](https://github.com/tuanemuy/hollow/commit/4422110fddb824597b3d45e24ed6b68fc20686aa))
+* **speech:** [#788](https://github.com/tuanemuy/hollow/issues/788) Cloudflare Workers AI ルート（env.AI binding）を speech registry に追加 ([#813](https://github.com/tuanemuy/hollow/issues/813)) ([0f6ed77](https://github.com/tuanemuy/hollow/commit/0f6ed778e11923f1a244b590c771fcc001b1f7e4))
+* **speech:** 録音＋文字起こしによるノート化（録音UI / SpeechRecognitionProvider 実装 / 文字起こしプロバイダ設定を別枠化） ([#736](https://github.com/tuanemuy/hollow/issues/736)) ([fa3bbdd](https://github.com/tuanemuy/hollow/commit/fa3bbdd8dfd0ba74d2f7a4bd598199a98416bc3c))
+* **tag:** [#580](https://github.com/tuanemuy/hollow/issues/580) タグ統合を非同期ジョブ化し determinate 進捗バナーを供給 ([#782](https://github.com/tuanemuy/hollow/issues/782)) ([7dcdc8a](https://github.com/tuanemuy/hollow/commit/7dcdc8a30344f6583526571871380b26f39f9c47))
+* **ui:** [#509](https://github.com/tuanemuy/hollow/issues/509) エクスポート画面（P15 フォーム / P16 ジョブ一覧・詳細）のデザイン未実装を解消 ([#769](https://github.com/tuanemuy/hollow/issues/769)) ([41c9109](https://github.com/tuanemuy/hollow/commit/41c91090b3484d2838e2928ec5376cfb14ec3bbe))
+* **worker:** [#747](https://github.com/tuanemuy/hollow/issues/747) processed_events の刈り込み経路を新設 ([#759](https://github.com/tuanemuy/hollow/issues/759)) ([8c456a3](https://github.com/tuanemuy/hollow/commit/8c456a3aa9ba29c070553730c32fb78e5fa503b8))
+* **worker:** [#783](https://github.com/tuanemuy/hollow/issues/783) 終端 job 行の保持期間 prune と purge 配線 ([#792](https://github.com/tuanemuy/hollow/issues/792)) ([453c08c](https://github.com/tuanemuy/hollow/commit/453c08c1fc8d53140b8d6567964f08d8869cf8d4))
+
+
+### Bug Fixes
+
+* **a11y:** [#781](https://github.com/tuanemuy/hollow/issues/781) データ駆動 RSC roving radiogroup の連続矢印フォーカスを復元 ([#784](https://github.com/tuanemuy/hollow/issues/784)) ([eac592f](https://github.com/tuanemuy/hollow/commit/eac592fb0bfb10b36a7801744e26754873b69bcc))
+* **admin:** [#817](https://github.com/tuanemuy/hollow/issues/817) UsersTable/Jobs の hydration mismatch を解消（日付整形の TZ 固定） ([#820](https://github.com/tuanemuy/hollow/issues/820)) ([9969fb1](https://github.com/tuanemuy/hollow/commit/9969fb1b1416a524cc94c80fe7bcfb2f20373fc6))
+* **csrf:** 配信 origin を許可し pnpm dev / pnpm start 双方で mutation を通す ([#835](https://github.com/tuanemuy/hollow/issues/835)) ([a66a157](https://github.com/tuanemuy/hollow/commit/a66a15703af89db8c6402abf836fa126ab0fefed))
+* **design:** [#723](https://github.com/tuanemuy/hollow/issues/723) P12 エディターモックを FrontMatter 下部常設に追従（[#697](https://github.com/tuanemuy/hollow/issues/697) 乖離解消） ([#815](https://github.com/tuanemuy/hollow/issues/815)) ([affe160](https://github.com/tuanemuy/hollow/commit/affe160c16e6c3292e81888d3eef57dbcd97182b))
+* **design:** [#726](https://github.com/tuanemuy/hollow/issues/726) P21 プロフィール設定モックの本人アイデンティティを山田 一郎に統一 ([#763](https://github.com/tuanemuy/hollow/issues/763)) ([4a647d3](https://github.com/tuanemuy/hollow/commit/4a647d38da97080aa8b7abef8fc0a05fd18a7729))
+* **design:** [#741](https://github.com/tuanemuy/hollow/issues/741) モバイル admin モックの admin-nav 壊れリンクを是正 ([#770](https://github.com/tuanemuy/hollow/issues/770)) ([50bc7b1](https://github.com/tuanemuy/hollow/commit/50bc7b1835b5f4dc0aae6ec05df3c9db5e911871))
+* **design:** モック sidebar-user のイニシャル不一致とメール右端詰まりを解消 ([#644](https://github.com/tuanemuy/hollow/issues/644)) ([#725](https://github.com/tuanemuy/hollow/issues/725)) ([2145620](https://github.com/tuanemuy/hollow/commit/2145620f521737b67549320caa7cf065d10b7e84))
+* **editor:** [#840](https://github.com/tuanemuy/hollow/issues/840) inline rollback の道連れ消失を防止 ([#845](https://github.com/tuanemuy/hollow/issues/845)) ([4fddf75](https://github.com/tuanemuy/hollow/commit/4fddf75fdd16a9ed87b62479984386e1d55c76b8))
+* **editor:** inline モードでメディア挿入直後の &lt;img&gt; 単体ラッパを編集可能にする ([#839](https://github.com/tuanemuy/hollow/issues/839)) ([21edba4](https://github.com/tuanemuy/hollow/commit/21edba49a2dc6cd43c93484445cd81f9c66f3b75))
+* **export:** [#401](https://github.com/tuanemuy/hollow/issues/401) エクスポート CSS にインスタンスのデザイントークン上書きを反映 ([#832](https://github.com/tuanemuy/hollow/issues/832)) ([feec97c](https://github.com/tuanemuy/hollow/commit/feec97cb4fa69c1e727697649d102261252095b1))
+* **frontend:** [#821](https://github.com/tuanemuy/hollow/issues/821) 日付整形の TZ を Asia/Tokyo 固定し共有ヘルパーに集約 ([#823](https://github.com/tuanemuy/hollow/issues/823)) ([d00f1d8](https://github.com/tuanemuy/hollow/commit/d00f1d856efa076954b4aec40c13b56ddd9c7e3e))
+* **note:** [#787](https://github.com/tuanemuy/hollow/issues/787) モバイルでノート詳細アクションツールバーを縮小 ([#809](https://github.com/tuanemuy/hollow/issues/809)) ([c0cc11c](https://github.com/tuanemuy/hollow/commit/c0cc11c13c0d1be9e17332aeb4ecce48d035b506))
+* **note:** [#791](https://github.com/tuanemuy/hollow/issues/791) ノート詳細で空白なし長文字列を折り返し横スクロールを防ぐ ([#796](https://github.com/tuanemuy/hollow/issues/796)) ([8247610](https://github.com/tuanemuy/hollow/commit/8247610693764f1f902ba1d6b3b8727a73d93d55))
+* **public:** [#599](https://github.com/tuanemuy/hollow/issues/599) RSC 内 notFound を ErrorPage 直接返却で 404/410 表示に修正 ([#734](https://github.com/tuanemuy/hollow/issues/734)) ([7cc7f35](https://github.com/tuanemuy/hollow/commit/7cc7f358e6643cef41feb4707a68a78a80423f23))
+* **public:** [#623](https://github.com/tuanemuy/hollow/issues/623) 共有リンクゲート（P33）・エラーページ（P34）のモック差分を解消 ([#724](https://github.com/tuanemuy/hollow/issues/724)) ([7482e62](https://github.com/tuanemuy/hollow/commit/7482e6270d4dba517d870fc51dbe1b4ece9cce2e))
+* **public:** [#735](https://github.com/tuanemuy/hollow/issues/735) 公開系ルートで存在しない/非公開リソースに HTTP 404 を返す ([#768](https://github.com/tuanemuy/hollow/issues/768)) ([cb8ce55](https://github.com/tuanemuy/hollow/commit/cb8ce55436682438656866f4e75d5664e0833f45))
+* **route:** [#827](https://github.com/tuanemuy/hollow/issues/827) RootDocument の二重描画を shellComponent 一元化で解消 ([#830](https://github.com/tuanemuy/hollow/issues/830)) ([a296dd9](https://github.com/tuanemuy/hollow/commit/a296dd90ec6f3bb752f425ba72a6fc86a1fe3836))
+* **search:** [#601](https://github.com/tuanemuy/hollow/issues/601) P32 スニペットの FTS5 &lt;mark&gt; ハイライトを要素として描画 ([#778](https://github.com/tuanemuy/hollow/issues/778)) ([04e4c3b](https://github.com/tuanemuy/hollow/commit/04e4c3be54daa6c2a723b047d66159227c481185))
+* **ui:** [#728](https://github.com/tuanemuy/hollow/issues/728) 認証遷移時のランディング一瞬表示を clearCache で解消 ([#731](https://github.com/tuanemuy/hollow/issues/731)) ([9141c7b](https://github.com/tuanemuy/hollow/commit/9141c7b41acf0827bc46663c43d65fa8ded4cee7))
+* **ui:** [#732](https://github.com/tuanemuy/hollow/issues/732) セッション失効の leaf 観測時の未認証 UI 1 フレーム露出を解消 ([#733](https://github.com/tuanemuy/hollow/issues/733)) ([6f9f278](https://github.com/tuanemuy/hollow/commit/6f9f27850fe0208889b172b64f78659ca8ccb4cb))
+* **ui:** [#749](https://github.com/tuanemuy/hollow/issues/749) モバイル表示をモックに合わせる（チップ32px / チェック24px / 44px床除去） ([#752](https://github.com/tuanemuy/hollow/issues/752)) ([3f8b8f2](https://github.com/tuanemuy/hollow/commit/3f8b8f2b25347bccbbfe4e50b45efdc4d20a8303))
+
+
+### Performance Improvements
+
+* **adapter:** [#168](https://github.com/tuanemuy/hollow/issues/168) countByNoteId を SQL count() 集計に変更 ([#764](https://github.com/tuanemuy/hollow/issues/764)) ([19425fe](https://github.com/tuanemuy/hollow/commit/19425fec7e9760ed6aa50d19cdc63d0783847d0e))
+
 ## [0.3.0](https://github.com/tuanemuy/hollow/compare/v0.2.3...v0.3.0) (2026-06-13)
 
 
