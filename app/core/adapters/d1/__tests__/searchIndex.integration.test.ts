@@ -114,6 +114,7 @@ async function makeDoc(
     body: string;
     visibility?: "private" | "unlisted" | "public";
     tagNames?: readonly string[];
+    directoryPath?: string;
     updatedAt?: Date;
   },
 ) {
@@ -125,7 +126,7 @@ async function makeDoc(
     title: params.title,
     plainBody: params.body,
     tagNames: params.tagNames ?? [],
-    directoryPath: "",
+    directoryPath: params.directoryPath ?? "",
     frontMatterDate: null,
     updatedAt: params.updatedAt ?? NOW,
   } as const;
@@ -137,6 +138,7 @@ function makeQuery(params: {
   visibilityFilter?: readonly ("private" | "unlisted" | "public")[];
   ownerIdFilter?: UserId | null;
   tagNames?: readonly string[];
+  directoryPathPrefix?: string | null;
   dateRange?: { from: Date; to: Date } | null;
   dateBasis?: "published_at" | "date_for_calendar";
   sort?: "relevance" | "newest";
@@ -153,7 +155,7 @@ function makeQuery(params: {
       "public",
     ],
     tagNames: params.tagNames ?? [],
-    directoryPathPrefix: null,
+    directoryPathPrefix: params.directoryPathPrefix ?? null,
     dateRange: params.dateRange ?? null,
     dateBasis: params.dateBasis,
     sort: params.sort,
@@ -695,6 +697,141 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
     expect(both.hits).toHaveLength(2);
     const visibilities = both.hits.map((h) => h.visibility).sort();
     expect(visibilities).toEqual(["private", "public"]);
+  });
+
+  it("filters by directoryPathPrefix (self + descendants, excludes siblings)", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    // `SearchDirectoryPath` requires a leading '/' on non-empty paths.
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Work root",
+        body: "overview material",
+        directoryPath: "/work",
+      }),
+    );
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Work child",
+        body: "overview material",
+        directoryPath: "/work/reports",
+      }),
+    );
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Personal",
+        body: "overview material",
+        directoryPath: "/personal",
+      }),
+    );
+
+    const scoped = await container.searchIndex.query(
+      makeQuery({ keyword: "overview", directoryPathPrefix: "/work" }),
+    );
+    // `/work` (exact) and `/work/reports` (descendant) match; the `/personal`
+    // sibling must not leak through the `LIKE '/work/%'` descendant pattern.
+    expect(scoped.hits).toHaveLength(2);
+    expect(scoped.hits.map((h) => h.title).sort()).toEqual([
+      "Work child",
+      "Work root",
+    ]);
+  });
+
+  it("filters by tagNames as an AND of exact quoted-token matches", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Tagged ai + ml",
+        body: "overview material",
+        tagNames: ["ai", "ml"],
+      }),
+    );
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Tagged ai-news",
+        body: "overview material",
+        tagNames: ["ai-news"],
+      }),
+    );
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Tagged design",
+        body: "overview material",
+        tagNames: ["design"],
+      }),
+    );
+
+    // Exact quoted-token match: `ai` must not bleed into the `ai-news` tag.
+    const ai = await container.searchIndex.query(
+      makeQuery({ keyword: "overview", tagNames: ["ai"] }),
+    );
+    expect(ai.hits).toHaveLength(1);
+    expect(ai.hits[0]?.title).toBe("Tagged ai + ml");
+
+    // AND-of-terms: every requested tag must be present on the doc.
+    const aiAndMl = await container.searchIndex.query(
+      makeQuery({ keyword: "overview", tagNames: ["ai", "ml"] }),
+    );
+    expect(aiAndMl.hits).toHaveLength(1);
+
+    const aiAndMissing = await container.searchIndex.query(
+      makeQuery({ keyword: "overview", tagNames: ["ai", "unrelated"] }),
+    );
+    expect(aiAndMissing.hits).toEqual([]);
+  });
+
+  it("rejects an out-of-enum visibility at the storage layer (sd_visibility_enum CHECK)", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    const doc = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: "Enum guard",
+      body: "これはデザイン原則のメモです",
+    });
+    await container.searchIndex.upsert(doc);
+
+    // `visibility` carries a `sd_visibility_enum` CHECK constraint, so an
+    // out-of-enum value can never be stored — which is why the read path's
+    // `Visibility.create` can never receive a corrupt value (unlike
+    // `updated_at`, which has no CHECK and is covered by the malformed-date
+    // test above). This asserts that storage-layer guarantee directly: a
+    // migration that dropped the CHECK would regress it silently.
+    const rejected = await container.db
+      .update(schema.searchDocuments)
+      .set({ visibility: "bogus" })
+      .where(eq(schema.searchDocuments.noteId, doc.noteId))
+      .then(
+        () => null,
+        (e: unknown) => e,
+      );
+    expect(rejected).not.toBeNull();
+
+    // The stored row is untouched, so the note still reads back cleanly.
+    const result = await container.searchIndex.query(
+      makeQuery({ keyword: "デザイン" }),
+    );
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits[0]?.visibility).toBe("private");
   });
 
   it("finds CJK matches after bulkRebuildFromSnapshots (port contract smoke)", async () => {
